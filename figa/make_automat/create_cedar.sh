@@ -109,7 +109,7 @@ F_CZECHNAMES_INVALID="${F_CZECHNAMES}.invalid"
 F_TMP_ENTITIES_WITH_GENDERTYPE="_${F_ENTITIES_WITH_GENDERTYPE}"
 F_TMP_CZECHNAMES="_${F_CZECHNAMES}"
 # Skip generating some files if exist, because they are very time consumed
-if ! test -f "${F_PERSONS_WITH_GENDERS}"; then
+if ! test -f "${F_ENTITIES_WITH_GENDERTYPE}"; then
   python3 get_entities_with_gender_or_type.py -k "$KB" > "${F_TMP_ENTITIES_WITH_GENDERTYPE}"
   mv "${F_TMP_ENTITIES_WITH_GENDERTYPE}" "${F_ENTITIES_WITH_GENDERTYPE}"
 fi
@@ -130,7 +130,6 @@ else
   python3 KB2namelist.py < "$KB" | tr -s ' ' > intext
 fi
 
-exit
 #=====================================================================
 # uprava stoplistu (kapitalizace a razeni)
 
