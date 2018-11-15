@@ -24,13 +24,20 @@ figa/sources/kb_loader_fast
 /**/*.ct
 /**/*.dct
 /**/__pycache__
+/**/*.log
 
 
 # generated & cached files
 KB-HEAD.*
-figa/make_automat/persons_with_genders_[0-9]*
+figa/make_automat/entities_with_gendertype_[0-9]*
 figa/make_automat/czechnames_[0-9]*.out*
 figa/make_automat/namegen.unknown.*
 figa/make_automat/stop_list.*
+figa/make_automat/KB_confidence
+figa/make_automat/intext
+figa/make_automat/intext_auto
+figa/make_automat/*_intext
+figa/make_automat/namelist
+figa/make_automat/*_namelist
 ner_fragments.pkl
 ner_namedict.pkl
