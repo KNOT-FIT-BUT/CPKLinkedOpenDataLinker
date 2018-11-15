@@ -80,24 +80,26 @@ def get_subnames_from_parts(subname_parts):
 			subname_part = ' ' + subname_part
 		subname_all += subname_part
 
-	subnames.add(subname_all)
+	if (subname_all):
+		subnames.add(subname_all)
 	return subnames
 
 
-def build_name_variant(inflection_parts, i_inflection_part, stacked_name, name_inflections):
+def build_name_variant(ent_flag, inflection_parts, i_inflection_part, stacked_name, name_inflections):
 	subnames = set()
 	separator = ''
 	if i_inflection_part < len(inflection_parts):
 		for inflected_part in inflection_parts[i_inflection_part]:
 			if stacked_name and inflected_part:
 				separator = ' '
-			name_inflections, built_subnames = build_name_variant(inflection_parts, i_inflection_part + 1, stacked_name + separator + inflected_part, name_inflections)
+			name_inflections, built_subnames = build_name_variant(ent_flag, inflection_parts, i_inflection_part + 1, stacked_name + separator + inflected_part, name_inflections)
 			subnames |= built_subnames
 	else:
-		name_inflections.add(regex.sub(r'#[A-Za-z0-9]( |$)', '\g<1>', stacked_name))
-		subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#G)', stacked_name))
-		subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#S(?: \p{L}+#[L78])*)', stacked_name))
-		subnames = Persons.get_normalized_subnames(subnames)
+		name_inflections.add(regex.sub(r'#[A-Za-z0-9](?=-| |$)', '', stacked_name))
+		if ent_flag in ['F', 'M']:
+			subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#G)', stacked_name))
+			subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#S(?: \p{L}+#[L78])*)', stacked_name))
+			subnames = Persons.get_normalized_subnames(subnames)
 	return [name_inflections, subnames]
 
 
@@ -120,10 +122,10 @@ def process_czechnames(cznames_file):
 							inflection_parts[i_infl_part].add(regex.sub(r'(\p{L}*)(\[[^\]]+\])?', '\g<1>', infl_part_variant))
 					if name not in name_inflections:
 						name_inflections[name] = set()
-					built_name_inflections, built_subnames = build_name_variant(inflection_parts, 0, "", set())
+					built_name_inflections, built_subnames = build_name_variant(line[1], inflection_parts, 0, "", set())
 					name_inflections[name] |= built_name_inflections
 					g_subnames |= built_subnames
-				if len(inflections) == 0:
+				if len(inflections) == 0 and line[1] in ['F', 'M']:
 					g_subnames |= Persons.get_normalized_subnames([name], True)
 
 	return name_inflections
@@ -186,12 +188,13 @@ def add_to_dictionary(_key, _value, _type, _fields, alt_names):
 
 	# Get all inflection variants of key
 	key_inflections = None
-	if _type in ["person", "person:artist", "person:fictional"]:
-		if _key in alt_names:
-			key_inflections = alt_names[_key]
+#	if _type in ["person", "person:artist", "person:fictional"]:
+	if _key in alt_names:
+		key_inflections = alt_names[_key]
 	if not key_inflections:
 		key_inflections = set([_key]) # TODO alternative names are not in subnames
-		g_subnames |= Persons.get_normalized_subnames(set([_key]), True)
+		if _type in ["person", "person:artist", "person:fictional"]:
+			g_subnames |= Persons.get_normalized_subnames(set([_key]), True)
 
 
 	# All following transformatios will be performed for each of inflection variant of key_inflection
@@ -231,7 +234,7 @@ def add_to_dictionary(_key, _value, _type, _fields, alt_names):
 			if "." in key_inflection:
 				new_key_inflection = regex.sub(r"(\p{Lu})\. (?=\p{Lu})", "\g<1>.", key_inflection) # J. M. W. Turner -> J.M.W.Turner
 				add(new_key_inflection, _value, _type)
-				new_key_inflection = regex.sub(r"(\p{Lu})\.(?=\p{Lu}\p{Ll}+)", "\g<1>. ", newkey_inflection) # J.M.W.Turner -> J.M.W. Turner
+				new_key_inflection = regex.sub(r"(\p{Lu})\.(?=\p{Lu}\p{Ll}+)", "\g<1>. ", new_key_inflection) # J.M.W.Turner -> J.M.W. Turner
 				add(new_key_inflection, _value, _type)
 				add(regex.sub(r"\.", "", new_key_inflection), _value, _type) # J.M.W. Turner -> JMW Turner
 			if "-" in key_inflection:
@@ -312,7 +315,7 @@ def add_line_of_type_to_dictionary(_fields, _line_num, alt_names, _type):
 	aliases = kb_struct.get_data_for(_fields, 'ALIASES').split(KB_MULTIVALUE_DELIM)
 	aliases.append(kb_struct.get_data_for(_fields, 'NAME'))
 	for t in aliases:
-		add_to_dictionary(t, _line_num, _type, _fields)
+		add_to_dictionary(t, _line_num, _type, _fields, alt_names)
 
 
 def process_person(_fields, _line_num, alt_names):
