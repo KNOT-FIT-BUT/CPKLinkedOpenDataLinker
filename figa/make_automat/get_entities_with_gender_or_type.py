@@ -53,7 +53,7 @@ def generate_name_alternatives(kb_path):
                         gender = kb_struct.get_data_for(line, 'GENDER')
 
                         append_names_to_list(names, gender)
-                    elif ent_type in ['country', 'country:former', 'settlement', 'wattercourse', 'waterarea', 'geo:relief', 'geo:waterfall', 'geo:island', 'geo:peninsula', 'geo:continent']:
+                    elif ent_type in ['country', 'country:former', 'settlement', 'watercourse', 'waterarea', 'geo:relief', 'geo:waterfall', 'geo:island', 'geo:peninsula', 'geo:continent']:
                         names = extract_names_from_line(line)
                         append_names_to_list(names, 'L')
                     else:
