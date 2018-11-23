@@ -172,8 +172,8 @@ def add_to_dictionary(_key, _value, _type, _fields, alt_names):
 			if _key.startswith("Seznam "):
 				return
 
-		# generally, we don't want names starting with low characters
-		if _type in ["person", "person:artist", "person:fictional", "event", "organisation"] or _type.startswith('geo'):
+		# generally, we don't want names starting with low characters (event is needed with low character, ie. "bitva u Waterloo")
+		if _type in ["person", "person:artist", "person:fictional", "organisation"] or _type.startswith('geo'):
 			if len(regex.findall(r"^\p{Ll}+", _key)) != 0:
 				return
 
@@ -238,7 +238,8 @@ def add_to_dictionary(_key, _value, _type, _fields, alt_names):
 				add(new_key_inflection, _value, _type)
 				add(regex.sub(r"\.", "", new_key_inflection), _value, _type) # J.M.W. Turner -> JMW Turner
 			if "-" in key_inflection:
-				add(regex.sub(r"\-", " ", key_inflection), _value, _type) # Payne-John Christo -> Payne John Christo
+				add(regex.sub(r"\-(\p{Lu})", " \g<1>", key_inflection), _value, _type) # Payne-John Christo -> Payne John Christo
+				add('-'.join(word[0].upper() + word[1:] if len(word) > 1 else word for word in key_inflection.split("-")), _value, _type) # Mao Ce-tung -> Mao Ce-Tung
 			if "ì" in key_inflection:
 				add(regex.sub("ì", "í", key_inflection), _value, _type) # Melozzo da Forlì -> Melozzo da Forlí
 
@@ -309,8 +310,16 @@ def add(_key, _value, _type):
 def add_line_of_type_to_dictionary(_fields, _line_num, alt_names, _type):
 	aliases = kb_struct.get_data_for(_fields, 'ALIASES').split(KB_MULTIVALUE_DELIM)
 	aliases.append(kb_struct.get_data_for(_fields, 'NAME'))
-	for t in aliases:
-		add_to_dictionary(t, _line_num, _type, _fields, alt_names)
+	for alias in aliases:
+		transformed_alias = [alias]
+		if _type == "event":
+			if len(alias) > 1:
+				transformed_alias = [alias[0].upper() + alias[1:], alias[0].lower() + alias[1:]] # capitalize destroys other uppercase letters to lowercase
+		elif _type == "organisation":
+			transformed_alias = [alias, ' '.join(word[0].upper() + word[1:] if len(word) > 1 else word for word in alias.split())] # title also destroys other uppercase letters in word to lowercase
+			
+		for ta in transformed_alias:
+			add_to_dictionary(ta, _line_num, _type, _fields, alt_names)
 
 
 def process_person(_fields, _line_num, alt_names):
@@ -456,9 +465,9 @@ def process_group(_fields, _line_num):
 
 def process_uri(_fields, _line_num):
 	""" Processes all URIs for a given entry. """
-	
+
 	entity_head = kb_struct.get_ent_head(_fields)
-	
+
 	uris = []
 	for uri_column_name in ['WIKIPEDIA LINK', 'WIKIPEDIA URL', 'DBPEDIA URL', 'FREEBASE URL']:
 		if uri_column_name in entity_head:
