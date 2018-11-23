@@ -283,11 +283,6 @@ def add(_key, _value, _type):
 	 _type : the type prefix for a given entity
 	"""
 
-	# disabling of some types (because the size of automaton exceeds 256MB and automaton is unstable)
-#	if _type in ["mythology", "family", "group", "event", "museum"] and not args.autocomplete:
-	if _type in ["mythology", "family", "group", "museum"] and not args.autocomplete:
-		return
-
 	_key = _key.strip()
 
 	if args.autocomplete:
