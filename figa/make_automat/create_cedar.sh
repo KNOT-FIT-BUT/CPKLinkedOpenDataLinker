@@ -33,6 +33,22 @@ usage()
     echo ""
 }
 
+
+makeAutomata() {
+    EXT=$1
+
+    if $LOWERCASE
+    then
+        ../figav1.0 -d namelist -n -w ../automata-lower"$EXT"
+    elif $URI
+    then
+        ../figav1.0 -d namelist -n -w ../automata-uri"$EXT"
+    else
+        ../figav1.0 -d namelist -n -w ../automata"$EXT"
+    fi
+}
+
+
 while [ "$1" != "" ]; do
     PARAM=`echo $1 | awk -F= '{print $1}'`
     VALUE=`echo $1 | awk -F= '{print $2}'`
@@ -76,10 +92,14 @@ while [ "$1" != "" ]; do
     shift
 done
 
-if $CEDAR && $DARTS ; then
-  usage
-  exit
-elif [ ! -f "$KB" ]; then
+
+if ! $DARTS
+then
+    CEDAR=true
+fi
+
+
+if [ ! -f "$KB" ]; then
   echo "ERROR: Could not found KB on path: ${KB}" >&2
   if ! $KB_GIVEN ; then
     echo "Did you forget to set the parameter \"-k\"? (Default \"${KB}\" was used.)\n" >&2
@@ -87,8 +107,6 @@ elif [ ! -f "$KB" ]; then
     usage
   fi
   exit
-elif $DARTS ; then
-  EXT=".dct"
 fi
 
 #=====================================================================
@@ -123,9 +141,9 @@ fi
 # vytvoreni seznamu klicu entit v KB, pridani fragmentu jmen a prijmeni entit a zajmen
 
 if $LOWERCASE ; then
-  python3 KB2namelist.py -l < "$KB" | tr -s ' ' > intext
+  python3 KB2namelist.py -l < "$KB" | tr -s ' ' > intext_lower
 elif $URI ; then
-  python3 KB2namelist.py -u < "$KB" > intext
+  python3 KB2namelist.py -u < "$KB" > intext_uri
 else
   python3 KB2namelist.py < "$KB" | tr -s ' ' > intext
 fi
@@ -149,20 +167,28 @@ fi
 
 if ! $URI ; then
   awk '{print $(NF)}' < "$KB" > KB_confidence
-  python uniq_namelist.py -s "KB_confidence" < intext > namelist
+  intext_namelist_suffix=
+  
+  if $LOWERCASE
+  then
+     intext_namelist_suffix="_lower"
+  fi
+
+  python uniq_namelist.py -s "KB_confidence" < "intext${intext_namelist_suffix}" > "namelist${intext_namelist_suffix}"
 else
-  python uniq_namelist.py < intext > namelist
+  python uniq_namelist.py < intext_uri > namelist_uri
 fi
 
 #=====================================================================
 # vytvoreni konecneho automatu
+if $CEDAR
+then
+    makeAutomata ".ct"
+fi
 
-if $LOWERCASE ; then
-  ../figav1.0 -d namelist -n -w ../automata-lower"$EXT"
-elif $URI ; then
-  ../figav1.0 -d namelist -n -w ../automata-uri"$EXT"
-else
-  ../figav1.0 -d namelist -n -w ../automata"$EXT"
+if $DARTS
+then
+    makeAutomata ".dct"
 fi
 
 #=====================================================================
@@ -170,8 +196,8 @@ fi
 
 #rm -f names
 #rm -f fragments
-#rm -f intext
+#rm -f intext intext_lower intext_uri
 #rm -f stop_list.all stop_list.var stop_list.all.sorted
-#rm -f namelist
+#rm -f namelist namelist_lower namelist_uri
 #rm -f KB_confidence
 

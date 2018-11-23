@@ -92,20 +92,11 @@ echo
 #=====================================================================
 # creating automaton for NER
 
-echo "creating CedarTree for NER"
-./figa/make_automat/create_cedar.sh -c -k KBstatsMetrics.all
+echo "creating CedarTree and DartsTree for NER"
+./figa/make_automat/create_cedar.sh -c -d -k KBstatsMetrics.all
 
-echo "creating autocomplete (cedar) for NER"
-./figa/make_automat/create_cedar_autocomplete.sh -c -k KBstatsMetrics.all
+echo "creating autocomplete (cedar and darts) for NER"
+./figa/make_automat/create_cedar_autocomplete.sh -c -d -k KBstatsMetrics.all
 
-echo "creating DartsTree for NER"
-./figa/make_automat/create_cedar.sh -d -k KBstatsMetrics.all
-
-echo "creating autocomplete (darts) for NER"
-./figa/make_automat/create_cedar_autocomplete.sh -d -k KBstatsMetrics.all
-
-echo "creating CedarTree for URIs"
-./figa/make_automat/create_cedar.sh -u -c -k KBstatsMetrics.all
-
-echo "creating DartsCloneTree for URIs"
-./figa/make_automat/create_cedar.sh -u -d -k KBstatsMetrics.all
+echo "creating CedarTree and DartsTree for URIs"
+./figa/make_automat/create_cedar.sh -u -c -d -k KBstatsMetrics.all

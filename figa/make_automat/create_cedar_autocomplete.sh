@@ -27,6 +27,27 @@ usage()
     echo ""
 }
 
+makeAutomata() {
+    EXT=$1
+
+    ../figav1.0 -d p_namelist -n -w ../p_automata"$EXT"
+    ../figav1.0 -d a_namelist -n -w ../a_automata"$EXT"
+    ../figav1.0 -d l_namelist -n -w ../l_automata"$EXT"
+    ../figav1.0 -d w_namelist -n -w ../w_automata"$EXT"
+    ../figav1.0 -d c_namelist -n -w ../c_automata"$EXT"
+    ../figav1.0 -d e_namelist -n -w ../e_automata"$EXT"
+    ../figav1.0 -d f_namelist -n -w ../f_automata"$EXT"
+    ../figav1.0 -d d_namelist -n -w ../d_automata"$EXT"
+    ../figav1.0 -d m_namelist -n -w ../m_automata"$EXT"
+    ../figav1.0 -d g_namelist -n -w ../g_automata"$EXT"
+    ../figav1.0 -d n_namelist -n -w ../n_automata"$EXT"
+    ../figav1.0 -d x_namelist -n -w ../x_automata"$EXT"
+    ../figav1.0 -d y_namelist -n -w ../y_automata"$EXT"
+    ../figav1.0 -d i_namelist -n -w ../i_automata"$EXT"
+    ../figav1.0 -d r_namelist -n -w ../r_automata"$EXT"
+}
+
+
 while [ "$1" != "" ]; do
     PARAM=`echo $1 | awk -F= '{print $1}'`
     VALUE=`echo $1 | awk -F= '{print $2}'`
@@ -64,10 +85,14 @@ while [ "$1" != "" ]; do
     shift
 done
 
-if $CEDAR && $DARTS ; then
-  usage
-  exit
-elif [ ! -f "$KB" ]; then
+
+if ! $DARTS
+then
+    CEDAR=true
+fi
+
+
+if [ ! -f "$KB" ]; then
   echo "ERROR: Could not found KB on path: ${KB}" >&2
   if ! $KB_GIVEN ; then
     echo "Did you forget to set the parameter \"-k\"? (Default \"${KB}\" was used.)\n" >&2
@@ -75,8 +100,6 @@ elif [ ! -f "$KB" ]; then
     usage
   fi
   exit
-elif $DARTS ; then
-  EXT=".dct"
 fi
 
 #=====================================================================
@@ -133,21 +156,16 @@ python uniq_namelist.py -s "KB_confidence" < r_intext > r_namelist
 
 #======================================================================
 # vytvoreni konecneho automatu
-../figav1.0 -d p_namelist -n -w ../p_automata"$EXT"
-../figav1.0 -d a_namelist -n -w ../a_automata"$EXT"
-../figav1.0 -d l_namelist -n -w ../l_automata"$EXT"
-../figav1.0 -d w_namelist -n -w ../w_automata"$EXT"
-../figav1.0 -d c_namelist -n -w ../c_automata"$EXT"
-../figav1.0 -d e_namelist -n -w ../e_automata"$EXT"
-../figav1.0 -d f_namelist -n -w ../f_automata"$EXT"
-../figav1.0 -d d_namelist -n -w ../d_automata"$EXT"
-../figav1.0 -d m_namelist -n -w ../m_automata"$EXT"
-../figav1.0 -d g_namelist -n -w ../g_automata"$EXT"
-../figav1.0 -d n_namelist -n -w ../n_automata"$EXT"
-../figav1.0 -d x_namelist -n -w ../x_automata"$EXT"
-../figav1.0 -d y_namelist -n -w ../y_automata"$EXT"
-../figav1.0 -d i_namelist -n -w ../i_automata"$EXT"
-../figav1.0 -d r_namelist -n -w ../r_automata"$EXT"
+if $CEDAR
+then
+    makeAutomata ".ct"
+fi
+
+if $DARTS
+then
+    makeAutomata ".dct"
+fi
+
 
 #=====================================================================
 # smazani mezivysledku

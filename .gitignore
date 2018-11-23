@@ -35,9 +35,10 @@ figa/make_automat/namegen.unknown.*
 figa/make_automat/stop_list.*
 figa/make_automat/KB_confidence
 figa/make_automat/intext
-figa/make_automat/intext_auto
+figa/make_automat/intext_*
 figa/make_automat/*_intext
 figa/make_automat/namelist
+figa/make_automat/namelist_*
 figa/make_automat/*_namelist
 ner_fragments.pkl
 ner_namedict.pkl
