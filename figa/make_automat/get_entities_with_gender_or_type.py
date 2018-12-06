@@ -32,6 +32,10 @@ def extract_names_from_line(line):
 def append_names_to_list(names, gender_or_type):
     for n in names:
         n = re.sub('\s+', ' ', n).strip()
+        if re.search(r"#lang=(?!cs).*$", n):
+            continue
+        else:
+            n = re.sub(r"#lang=cs$", "", n)
         unsuitable = ";?!()[]{}<>/~@#$%^&*_=+|\"\\"
         for x in unsuitable:
             if x in n:
