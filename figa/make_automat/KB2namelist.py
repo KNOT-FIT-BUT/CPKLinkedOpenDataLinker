@@ -243,16 +243,16 @@ def add_to_dictionary(_key, _value, _type, _fields, alt_names):
 				add(regex.sub(r'(Sv\. ?|Sv )', 'Svatý ', key_inflection), _value, _type) # Sv. Jan / Sv.Jan / Sv Jan -> Svatý Jan
 
 		if _type in ["person", "person:artist", "person:fictional"]:
-			add(regex.sub(r"(\p{Lu})\p{Ll}+ (\p{Lu}\p{Ll}+)", "\g<1>. \g<2>", key_inflection), _value, _type) # Adolf Born -> A. Born
-			add(regex.sub(r"(\p{Lu})\p{Ll}+ (\p{Lu})\p{Ll}+ (\p{Lu}\p{Ll}+)", "\g<1>. \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> P. P. Rubens
-			add(regex.sub(r"(\p{Lu}\p{Ll}+) (\p{Lu})\p{Ll}+ (\p{Lu}\p{Ll}+)", "\g<1> \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> Peter P. Rubens
+			add(regex.sub(r"(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<1>. \g<2>", key_inflection), _value, _type) # Adolf Born -> A. Born
+			add(regex.sub(r"(\p{Lu})\p{Ll}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<1>. \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> P. P. Rubens
+			add(regex.sub(r"(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<1> \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> Peter P. Rubens
 			if "Mc" in key_inflection:
 				add(regex.sub(r"Mc(\p{Lu})", "Mc \g<1>", key_inflection), _value, _type) # McCollum -> Mc Collum
 				add(regex.sub(r"Mc (\p{Lu})", "Mc\g<1>", key_inflection), _value, _type) # Mc Collum -> McCollum
 			if "." in key_inflection:
 				new_key_inflection = regex.sub(r"(\p{Lu})\. (?=\p{Lu})", "\g<1>.", key_inflection) # J. M. W. Turner -> J.M.W.Turner
 				add(new_key_inflection, _value, _type)
-				new_key_inflection = regex.sub(r"(\p{Lu})\.(?=\p{Lu}\p{Ll}+)", "\g<1>. ", new_key_inflection) # J.M.W.Turner -> J.M.W. Turner
+				new_key_inflection = regex.sub(r"(\p{Lu})\.(?=\p{Lu}\p{L}+)", "\g<1>. ", new_key_inflection) # J.M.W.Turner -> J.M.W. Turner
 				add(new_key_inflection, _value, _type)
 				add(regex.sub(r"\.", "", new_key_inflection), _value, _type) # J.M.W. Turner -> JMW Turner
 			if "-" in key_inflection:
