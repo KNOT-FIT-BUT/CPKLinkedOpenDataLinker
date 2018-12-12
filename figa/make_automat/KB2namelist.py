@@ -95,11 +95,20 @@ def build_name_variant(ent_flag, inflection_parts, i_inflection_part, stacked_na
 			name_inflections, built_subnames = build_name_variant(ent_flag, inflection_parts, i_inflection_part + 1, stacked_name + separator + inflected_part, name_inflections)
 			subnames |= built_subnames
 	else:
-		name_inflections.add(regex.sub(r'#[A-Za-z0-9]E?(?=-| |$)', '', stacked_name))
+		new_name_inflections = set()
+		new_name_inflections.add(stacked_name)
 		if ent_flag in ['F', 'M']:
+			match_one_firstname_surnames = regex.match("^([^#]+#[G]E? )(?:[^#]+#[G]E? )+((?:[^# ]+#SE?(?: \p{L}+#[L78]E?)*(?: |$))+)", stacked_name)
+			if match_one_firstname_surnames:
+				firstname_surnames = match_one_firstname_surnames.group(1) + match_one_firstname_surnames.group(2)
+				if firstname_surnames not in name_inflections:
+					new_name_inflections.add(firstname_surnames)
+
 			subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#GE?)', stacked_name))
 			subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#SE?(?: \p{L}+#[L78])*)', stacked_name))
 			subnames = Persons.get_normalized_subnames(subnames)
+		for n in new_name_inflections:
+			name_inflections.add(regex.sub(r'#[A-Za-z0-9]E?(?=-| |$)', '', n))
 	return [name_inflections, subnames]
 
 
