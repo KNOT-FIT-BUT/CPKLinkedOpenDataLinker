@@ -74,7 +74,7 @@ def get_subnames_from_parts(subname_parts):
 	subnames = set()
 	subname_all = ''
 	for subname_part in subname_parts:
-		subname_part = regex.sub(r'#[A-Za-z0-9]( |$)', '\g<1>', subname_part)
+		subname_part = regex.sub(r'#[A-Za-z0-9]E?( |$)', '\g<1>', subname_part)
 		subnames.add(subname_part)
 		if subname_all:
 			subname_part = ' ' + subname_part
@@ -95,10 +95,10 @@ def build_name_variant(ent_flag, inflection_parts, i_inflection_part, stacked_na
 			name_inflections, built_subnames = build_name_variant(ent_flag, inflection_parts, i_inflection_part + 1, stacked_name + separator + inflected_part, name_inflections)
 			subnames |= built_subnames
 	else:
-		name_inflections.add(regex.sub(r'#[A-Za-z0-9](?=-| |$)', '', stacked_name))
+		name_inflections.add(regex.sub(r'#[A-Za-z0-9]E?(?=-| |$)', '', stacked_name))
 		if ent_flag in ['F', 'M']:
-			subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#G)', stacked_name))
-			subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#S(?: \p{L}+#[L78])*)', stacked_name))
+			subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#GE?)', stacked_name))
+			subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#SE?(?: \p{L}+#[L78])*)', stacked_name))
 			subnames = Persons.get_normalized_subnames(subnames)
 	return [name_inflections, subnames]
 
@@ -317,7 +317,7 @@ def add_line_of_type_to_dictionary(_fields, _line_num, alt_names, _type):
 				transformed_alias = [alias[0].upper() + alias[1:], alias[0].lower() + alias[1:]] # capitalize destroys other uppercase letters to lowercase
 		elif _type == "organisation":
 			transformed_alias = [alias, ' '.join(word[0].upper() + word[1:] if len(word) > 1 else word for word in alias.split())] # title also destroys other uppercase letters in word to lowercase
-			
+
 		for ta in transformed_alias:
 			add_to_dictionary(ta, _line_num, _type, _fields, alt_names)
 
