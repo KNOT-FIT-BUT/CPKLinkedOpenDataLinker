@@ -25,6 +25,7 @@ Terminály jsou předdefinované. Jejich seznam je následující:
 	r	- římská číslice (od I do XXXIX)
 	a	- zkratka
 	ia	- Iniciálová zkratka. (Slovo s tečkou na konci o délce 2 [včetně tečky])
+	n	- číslo (pouze z číslic) Příklady: 12., 12
 
 Terminálům můžeme přiřazovat atributy. Uvádějí se bezprostředně za terminál do složených závorek. Uvedeme si příklad:
 
@@ -68,7 +69,11 @@ Možné atributy a jejich hodnoty:
     	
     	Příklad: "^.*ová$"	
     		Všechna slova končící na ová.
-
+    note - Poznámka. Uvedená v morfologické analýze.
+    	Příklad: jL
+    f	-	Flagy
+    	GW	- Jedná se o obecné slovo. Jehož lemma začíná malým písmenem a jeho morfologická analýza je bez poznámky.
+		NGW - negace GW
 
 
 ## Příklad

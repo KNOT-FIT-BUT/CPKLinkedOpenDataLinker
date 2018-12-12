@@ -8,7 +8,7 @@ Modul pro práci se slovem.
 from enum import Enum
 from namegenPack import Errors
 from namegenPack.morpho.MorphoAnalyzer import MorphoAnalyzer,MorphoAnalyze, MorphCategory
-from namegenPack.morpho.MorphCategories import StylisticFlag
+from namegenPack.morpho.MorphCategories import StylisticFlag, Flag
 from typing import Set
 
 class WordTypeMark(Enum):
@@ -21,6 +21,7 @@ class WordTypeMark(Enum):
     ROMAN_NUMBER="R"                #Římská číslice. Příklad: IV
     PREPOSITION="7"                 #Předložka.
     CONJUCTION="8"                  #Spojka.
+    NUMBER="4"                      #Číslovka. Příklad: 2
     DEGREE_TITLE="T"                #Titul. Příklad: prof.
     INITIAL_ABBREVIATION="I"        #Iniciálová zkratka. Příklad H. ve jméně John H. White
     UNKNOWN="U"                     #Neznámé
@@ -115,7 +116,7 @@ class Word(object):
         return a
     
     
-    def morphs(self, categories: Set[MorphCategory], wordFilter: Set[MorphCategory] =set()):
+    def morphs(self, categories: Set[MorphCategory], wordFilter: Set[MorphCategory] =set(), groupFlags:Set[Flag]=set()):
         """
         Vygeneruje tvary slova s ohledem na poskytnuté kategorie. Vybere jen tvary jenž odpovídají daným kategoriím.
         Příklad: V atributu categories jsou: podstatné jméno, rodu mužský, jednotné číslo
@@ -130,6 +131,8 @@ class Word(object):
                 Příklad: Pokud je vložen 1. pád. Budou brány v úvahu jen tvary, které patří ke skupině tvarů vázajících se na případ
                 že původní slovo je v 1. pádu.
         :type wordFilter: Set[MorphCategory]
+        :param groupFlags: Flagy, které musí mít daná skupina vázající se na slovo.
+        :type groupFlags: Set[Flag]
         :return: Vrací možné tvary i s jejich pravidly.
                 Set[Tuple[MARule,str]]    str je tvar
         :rtype: Set[Tuple[MARule,str]]
@@ -138,7 +141,7 @@ class Word(object):
         #na základě filtrů získáme všechny možné tvary
         #nechceme hovorové tvary ->StylisticFlag.COLLOQUIALLY
                 
-        tmp=self.info.getMorphs(categories, {StylisticFlag.COLLOQUIALLY}, wordFilter)
+        tmp=self.info.getMorphs(categories, {StylisticFlag.COLLOQUIALLY}, wordFilter, groupFlags)
         if tmp is None or len(tmp)<1:
 
             raise self.WordNoMorphsException(self, Errors.ErrorMessenger.CODE_WORD_NO_MORPHS_GENERATED,

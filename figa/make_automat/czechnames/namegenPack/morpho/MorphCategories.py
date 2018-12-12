@@ -131,6 +131,8 @@ class MorphCategories(Enum):
     STYLISTIC_FLAG=7
     """stylistický příznak"""
     
+    NOTE=8
+    """poznámka"""
 
     @property
     def lntrf(self):
@@ -179,7 +181,8 @@ MorphCategories._lntrfMap={
             MorphCategories.NEGATION:"e",
             MorphCategories.DEGREE_OF_COMPARISON:"d",
             MorphCategories.PERSON:"p",
-            MorphCategories.STYLISTIC_FLAG:"w"
+            MorphCategories.STYLISTIC_FLAG:"w",
+            MorphCategories.NOTE:";",
             }
 """Zobrazení pro lntrf konverzi."""
 
@@ -288,7 +291,7 @@ class Number(MorphCategory):
         return MorphCategories.NUMBER
     
 Number._mappingLntrf={e:str(e.value) for e in Number}
-"""Zobrazení sloužící pro konverzi s LNTRF."""  
+"""Zobrazení sloužící pro konverzi z LNTRF."""  
 Number._mappingLntrfInverse={v: k for k, v in Number._mappingLntrf.items()}
 """Inverzní zobrazení k _mappingLntrf."""
             
@@ -323,7 +326,7 @@ class Case(MorphCategory):
     def category():
         return MorphCategories.CASE
 Case._mappingLntrf={e:str(e.value) for e in Case}
-"""Zobrazení sloužící pro konverzi s LNTRF."""  
+"""Zobrazení sloužící pro konverzi z LNTRF."""  
 Case._mappingLntrfInverse={v: k for k, v in Case._mappingLntrf.items()}
 """Inverzní zobrazení k _mappingLntrf."""
   
@@ -342,7 +345,7 @@ class Negation(MorphCategory):
     def category():
         return MorphCategories.NEGATION
 Negation._mappingLntrf={e:str(e.value) for e in Negation}
-"""Zobrazení sloužící pro konverzi s LNTRF.""" 
+"""Zobrazení sloužící pro konverzi z LNTRF.""" 
 Negation._mappingLntrfInverse={v: k for k, v in Negation._mappingLntrf.items()}
 """Inverzní zobrazení k _mappingLntrf."""
 
@@ -365,7 +368,7 @@ class DegreeOfComparison(MorphCategory):
     def category():
         return MorphCategories.DEGREE_OF_COMPARISON
 DegreeOfComparison._mappingLntrf={e:str(e.value) for e in DegreeOfComparison}
-"""Zobrazení sloužící pro konverzi s LNTRF."""     
+"""Zobrazení sloužící pro konverzi z LNTRF."""     
 DegreeOfComparison._mappingLntrfInverse={v: k for k, v in DegreeOfComparison._mappingLntrf.items()}
 """Inverzní zobrazení k _mappingLntrf."""
 
@@ -390,7 +393,7 @@ class Person(MorphCategory):
     def category():
         return MorphCategories.PERSON
 Person._mappingLntrf={e:str(e.value) for e in Person}
-"""Zobrazení sloužící pro konverzi s LNTRF."""
+"""Zobrazení sloužící pro konverzi z LNTRF."""
 Person._mappingLntrfInverse={v: k for k, v in Person._mappingLntrf.items()}
 """Inverzní zobrazení k _mappingLntrf."""
 
@@ -430,9 +433,45 @@ class StylisticFlag(MorphCategory):
         return MorphCategories.STYLISTIC_FLAG
     
 StylisticFlag._mappingLntrf={e:str(e.value) for e in StylisticFlag}
-"""Zobrazení sloužící pro konverzi s LNTRF."""    
+"""Zobrazení sloužící pro konverzi z LNTRF."""    
 StylisticFlag._mappingLntrfInverse={v: k for k, v in StylisticFlag._mappingLntrf.items()}
 """Inverzní zobrazení k _mappingLntrf."""   
+
+class Note(MorphCategory):
+    """
+    Poznámka.
+    """
+    
+    LOCATION="jL"
+    """Vyjadřuje místo"""
+    
+    CHARACTER_AS_NOUN="iP"
+    """
+    Nenašel jsem v dokumentaci. Jen odvozuji na základě pozorování.
+    Písmeno jako podstatné jméno."""
+    
+    
+
+    @staticmethod
+    def category():
+        return MorphCategories.NOTE
+    
+Note._mappingLntrf={e:str(e.value) for e in Note}
+"""Zobrazení sloužící pro konverzi z LNTRF."""    
+Note._mappingLntrfInverse={v: k for k, v in Note._mappingLntrf.items()}
+"""Inverzní zobrazení k _mappingLntrf."""   
+
+class Flag(Enum):
+    """
+    Flagy
+    """
+    
+    GENERAL_WORD="GW"
+    """Jedná se o obecné slovo. Začíná malým písmenem a je bez poznámky."""
+    
+    NOT_GENERAL_WORD="NGW"
+    """Negace GENERAL_WORD."""
+
 
 MorphCategories._lntrfCatMap={
             MorphCategories.POS: POS.fromLntrf,
@@ -442,6 +481,7 @@ MorphCategories._lntrfCatMap={
             MorphCategories.NEGATION: Negation.fromLntrf,
             MorphCategories.DEGREE_OF_COMPARISON: DegreeOfComparison.fromLntrf,
             MorphCategories.PERSON: Person.fromLntrf,
-            MorphCategories.STYLISTIC_FLAG: StylisticFlag.fromLntrf
+            MorphCategories.STYLISTIC_FLAG: StylisticFlag.fromLntrf,
+            MorphCategories.NOTE: Note.fromLntrf
             }
 """Zobrazení pro lntrf konverzi. Pro tvorbu MorphCategory z lntrf hodnoty s ohledem na aktuální použitou hodnotu z MorphCategories."""

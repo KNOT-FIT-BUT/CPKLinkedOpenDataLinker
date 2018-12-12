@@ -14,6 +14,7 @@ from namegenPack.morpho.MorphCategories import *
 import collections
 
 from typing import Set, Dict, Tuple
+import string
 
 class MARule(collections.Mapping):
     """
@@ -49,7 +50,19 @@ class MARule(collections.Mapping):
     @property
     def lntrf(self):
         """
-        Ve formátu lntrf.
+        Ve formátu lntrf. Včetně poznámky
+        """
+        res=self.lntrfWithoutNote
+        try:
+            return res+self[MorphCategories.NOTE].lntrf
+        except KeyError:
+            pass
+        return res
+        
+    @property
+    def lntrfWithoutNote(self):
+        """
+        Ve formátu lntrf. Bez poznámky
         """
         pos=self[MorphCategories.POS].lntrf
         #pořadí pro ify je voleno dle předpokládané četnosti
@@ -115,15 +128,8 @@ class MorphoAnalyze(ABC):
     Interface pro výsledky morfologické analýzy slova.
     """
     
-    @abstractproperty
-    def word(self):
-        """
-        Slovo pro nějž je tato morfologická analýza.
-        """
-        pass
-    
     @abstractmethod
-    def getAll(self, valFilter: Set[MorphCategory] =set(), notValFilter: Set[MorphCategory] =set()) -> Dict[MorphCategories,Set[MorphCategory]]:
+    def getAll(self, valFilter: Set[MorphCategory] =set(), notValFilter: Set[MorphCategory] =set(), groupFlags:Set[Flag]=set()) -> Dict[MorphCategories,Set[MorphCategory]]:
         """
         Vrácení všech možných hodnot mluvnických kategorií.
         
@@ -136,13 +142,15 @@ class MorphoAnalyze(ABC):
         :type valFilter: Set[MorphCategory]
         :param notValFilter: Stejné jako valFilter s tím rozdílem, že dané hodnoty nesmí pravidlo tvaru obsahovat.
         :type notValFilter:Set[MorphCategory]
+        :param groupFlags: Flagy, které musí mít daná skupina vázající se na slovo.
+        :type groupFlags: Set[Flag]
         :return: Hodnoty mluvnických kategorií.
         :rtype: Dict[MorphCategories, Set[MorphCategory]]
         """
         pass
     
     @abstractmethod
-    def getAllForCategory(self, morphCategory: MorphCategories, valFilter: Set[MorphCategory] =set(), notValFilter: Set[MorphCategory] =set()) -> Set[MorphCategory]:
+    def getAllForCategory(self, morphCategory: MorphCategories, valFilter: Set[MorphCategory] =set(), notValFilter: Set[MorphCategory] =set(), groupFlags:Set[Flag]=set()) -> Set[MorphCategory]:
         """
         Vrácení všech možných hodnot dané mluvnické kategorie.
         
@@ -157,13 +165,15 @@ class MorphoAnalyze(ABC):
         :type valFilter: Set[MorphCategory]
         :param notValFilter: Stejné jako valFilter s tím rozdílem, že dané hodnoty nesmí pravidlo tvaru obsahovat.
         :type notValFilter:Set[MorphCategory]
+        :param groupFlags: Flagy, které musí mít daná skupina vázající se na slovo.
+        :type groupFlags: Set[Flag]
         :return: Hodnoty dané mluvnické kategorie.
         :rtype: Set[MorphCategory]
         """
         pass
     
     @abstractmethod
-    def getMorphs(self, valFilter: Set[MorphCategory]=set(), notValFilter: Set[MorphCategory] =set(), wordFilter: Set[MorphCategory] =set())->Set[Tuple[MARule,str]]:
+    def getMorphs(self, valFilter: Set[MorphCategory]=set(), notValFilter: Set[MorphCategory] =set(), wordFilter: Set[MorphCategory] =set(), groupFlags:Set[Flag]=set())->Set[Tuple[MARule,str]]:
         """
         Získání tvarů.
         
@@ -183,6 +193,8 @@ class MorphoAnalyze(ABC):
                 Příklad: Pokud je vložen 1. pád. Budou brány v úvahu jen tvary, které patří ke skupině tvarů vázajících se na případ
                 že původní slovo je v 1. pádu.
         :type wordFilter: Set[MorphCategory]
+        :param groupFlags: Flagy, které musí mít daná skupina vázající se na slovo.
+        :type groupFlags: Set[Flag]
         :return: Množinu dvojic (pravidlo, tvar).
         :rtype: Set[Tuple[MARule,str]]
         """
@@ -219,6 +231,7 @@ class MorphoAnalyzerLibma(object):
     .. _ma: http://knot.fit.vutbr.cz/wiki/index.php/Morfologický_slovník_a_morfologický_analyzátor_pro_češtinu
     
     """
+    
     
     class MAWordGroup():
         """
@@ -265,13 +278,61 @@ class MorphoAnalyzerLibma(object):
             :param word: Slovo pro nějž je tato skupina vytvořena.
             :type word: str
             """
-        
             self._word=word
-            self._lemma=None
-            self._paradigm=None
+            self._flags={Flag.NOT_GENERAL_WORD} #implicitně se nejedná o obecné slovo
             self._tagRules=[]   #značko pravidla pro slovo
             self._morphs=[] #tvary k danému slovu ve formátu dvojic (tagRule, tvar)
             
+        @property
+        def flags(self):
+            """
+            Flagy skupiny.
+            """
+            return self._flags
+
+        def addFlag(self, flag:Flag):
+            """
+            Přidání flagu ke skupině.
+            Stará se o odstraňování flagů, které jsou opakem práve přidaného flagu.
+            Příklad:
+                Přidávám: Flag.GENERAL_WORD
+                Pokud má flag Flag.NOT_GENERAL_WORD, tak bude Flag.NOT_GENERAL_WORD odstraněn.
+
+            :param flag: Nový flag.
+            :type flag: Flag
+            """
+            if flag==Flag.GENERAL_WORD and Flag.NOT_GENERAL_WORD in self._flags:
+                self._flags.remove(Flag.NOT_GENERAL_WORD)
+            elif flag==Flag.NOT_GENERAL_WORD and Flag.GENERAL_WORD in self._flags:
+                self._flags.remove(Flag.GENERAL_WORD)
+                
+            self._flags.add(flag)
+            
+        def removeFlag(self, flag:Flag):
+            """
+            Odstranění flagu ze skupině.
+
+            :param flag: Flag pro odstranění.
+            :type flag: Flag
+            """
+            self._flags.remove(flag)   
+        
+        @property
+        def word(self):
+            """
+            Slovo pro nějž je tato skupina vytvořena.
+            """
+            return self._word
+
+        @word.setter
+        def word(self, value):
+            """
+            Nastavení slova pro nějž je tato skupina vytvořena.
+            
+            :param value: Slovo pro nějž je tato skupina vytvořena.
+            :type value: str
+            """
+            self._word = value    
             
         def addMorph(self, tagRule, morph):
             """
@@ -332,19 +393,37 @@ class MorphoAnalyzerLibma(object):
             :return: Převedené pravidlo z morfologické analýzy.
             :rtype: MARule
             """
-            #Příklad převodu: k1gFnPc1
+            #Příklad převodu: k1gFnPc1;jL
             #    
-            #    {"k":"1","g":"F","n":"P","c":"1"}
+            #    {"k":"1","g":"F","n":"P","c":"1","note":"jL"}
             
             
             res=dict()
-            for i in range(0, len(tagRule)-1, 2):
+            note=None
+            rule=tagRule.split(";")
+            
+            if len(rule)==2:
+                note=rule[1]
+                
+            rule=rule[0]
+                
+            for i in range(0, len(rule)-1, 2):
                 try:
-                    mCategory=MorphCategories.fromLntrf(tagRule[i])
-                    res[mCategory]=mCategory.createCategoryFromLntrf(tagRule[i+1])
+                    mCategory=MorphCategories.fromLntrf(rule[i])
+                    res[mCategory]=mCategory.createCategoryFromLntrf(rule[i+1])
                 except (MorphCategoryInvalidException, MorphCategoryInvalidValueException):
                     #neznámá kategorie, či hodnota kategorie
                     #pravděpodobně se jedná o kategorii, která nás nezajíma
+                    #tak to vynecháme
+                    pass
+                
+            if note is not None:
+                try:
+                    mCategory=MorphCategories.NOTE
+                    res[mCategory]=mCategory.createCategoryFromLntrf(note)
+                except MorphCategoryInvalidValueException:
+                    #neznámá hodnota kategorie/hodnoty
+                    #pravděpodobně se jedná o kategorii/hodnoty, která nás nezajíma
                     #tak to vynecháme
                     pass
 
@@ -357,7 +436,15 @@ class MorphoAnalyzerLibma(object):
             :param tagRule: Značko pravidlo 
             :type tagRule: MARule
             """
-            
+            if MorphCategories.NOTE in tagRule:
+                #Zkontrolujeme, zda-li aktuálně vkládané pravidlo nemá poznámku
+                
+                if Flag.GENERAL_WORD in self._flags:
+                    #pokud ano, tak musíme tento flag odstranit.
+                    self._flags.remove(Flag.GENERAL_WORD)
+                    #a vrátíme impicitní
+                    self._flags.add(Flag.NOT_GENERAL_WORD)
+                
             self._tagRules.append(tagRule)
             
         def addTagRule(self, tagRule):
@@ -367,8 +454,9 @@ class MorphoAnalyzerLibma(object):
             :param tagRule: Značko pravidlo (příklad k1gFnPc1)
             :type tagRule: str
             """
-            
-            self._tagRules.append(self.convTagRule(tagRule))
+            r=self.convTagRule(tagRule)
+            if r:
+                self._tagRules.append(r)
             
         def getAll(self, valFilter: Set[MorphCategory] =set(), notValFilter: Set[MorphCategory] =set()) -> Dict[MorphCategories,Set[MorphCategory]]:
             """
@@ -439,22 +527,6 @@ class MorphoAnalyzerLibma(object):
 
             return values  
             
-        @property
-        def word(self):
-            """
-            Slovo pro nějž je tato skupina vytvořena.
-            """
-            return self._word
-
-        @word.setter
-        def word(self, value):
-            """
-            Nastavení slova pro nějž je tato skupina vytvořena.
-            
-            :param value: Slovo pro nějž je tato skupina vytvořena.
-            :type value: str
-            """
-            self._word = value
          
         @property
         def rules(self):
@@ -462,49 +534,14 @@ class MorphoAnalyzerLibma(object):
             Přiřazená pravidla
             """
             return self._tagRules
-               
-        @property
-        def lemma(self):
-            """
-            Lemma slova.
-            """
-            return self._lemma
-
-        @lemma.setter
-        def lemma(self, value):
-            """
-            Nastavení nového lemma slova.
-            
-            :param value: Lemma slova.
-            :type value: str
-            """
-            self._lemma = value
-            
-        @property
-        def paradigm(self):
-            """
-            Vzor slova.
-            """
-            return self._paradigm
-
-        @paradigm.setter
-        def paradigm(self, value):
-            """
-            Nastavení nového vzoru slova.
-            
-            :param value: Vzor slova.
-            :type value: str
-            """
-            self._paradigm = value
             
         def __str__(self):
-            s="Lemma: "+self._lemma+"\n"
-            s+="Paradigm: "+self._paradigm+"\n"
-            
-            s+="Tag rules:\n"
+            s="Tag rules:\n"
             for tr in self._tagRules:
                 s+="\t"+str(tr)+"\n"
-            
+            s+="Flags:\n"
+            for f in self._flags:
+                s+="\t"+str(f)+"\n"
             s+="Morphs:\n"
             for m in self._morphs:
                 s+="\t"+str(m)+"\n"
@@ -517,14 +554,11 @@ class MorphoAnalyzerLibma(object):
         Obsahuje data z morfologické analýzy slova.
         """
         
-        def __init__(self, word):
+        def __init__(self):
             """
             Vytvoření instance morfologické analýzy slova.
-            
-            :param word: Slovo pro nějž je morfologická analýza vytvořena.
-            :type word: str
+
             """
-            self._word=word
             self._groups=[]
             
         
@@ -547,7 +581,7 @@ class MorphoAnalyzerLibma(object):
             
             self._groups.remove(group)
             
-        def getAll(self, valFilter: Set[MorphCategory] =set(), notValFilter: Set[MorphCategory] =set()) -> Dict[MorphCategories,Set[MorphCategory]]:
+        def getAll(self, valFilter: Set[MorphCategory] =set(), notValFilter: Set[MorphCategory] =set(), groupFlags:Set[Flag]=set()) -> Dict[MorphCategories,Set[MorphCategory]]:
             """
             Vrácení všech možných hodnot mluvnických kategorií. Ve všech skupinách
             získaných při analýze slova.
@@ -561,24 +595,30 @@ class MorphoAnalyzerLibma(object):
             :type valFilter: Set[MorphCategory]
             :param notValFilter: Stejné jako valFilter s tím rozdílem, že dané hodnoty nesmí pravidlo tvaru obsahovat.
             :type notValFilter:Set[MorphCategory]
+            :param groupFlags: Flagy, které musí mít daná skupina vázající se na slovo.
+            :type groupFlags: Set[Flag]
             :return: Hodnoty mluvnických kategorií.
             :rtype: Dict[MorphCategories, Set[MorphCategory]]
             """
             values={}
             
+            
+            
             for g in self._groups:
+                if len(g.flags & groupFlags)==len(groupFlags):
+                    #má všechny flagy
                 
-                for morphCat, morphCatValues in g.getAll(valFilter, notValFilter).items():
-                    try:
-                        values[morphCat]=values[morphCat] | morphCatValues
-                    except KeyError:
-                        #první vložení hodnoty dané kategorie
-                        values[morphCat]=morphCatValues
+                    for morphCat, morphCatValues in g.getAll(valFilter, notValFilter).items():
+                        try:
+                            values[morphCat]=values[morphCat] | morphCatValues
+                        except KeyError:
+                            #první vložení hodnoty dané kategorie
+                            values[morphCat]=morphCatValues
 
             return values
 
         
-        def getAllForCategory(self, morphCategory: MorphCategories, valFilter: Set[MorphCategory] =set(), notValFilter: Set[MorphCategory] =set()) -> Set[MorphCategory]:
+        def getAllForCategory(self, morphCategory: MorphCategories, valFilter: Set[MorphCategory] =set(), notValFilter: Set[MorphCategory] =set(), groupFlags:Set[Flag]=set()) -> Set[MorphCategory]:
             """
             Vrácení všech možných hodnot dané mluvnické kategorie. Ve všech skupinách
             získaných při analýze slova.
@@ -594,6 +634,8 @@ class MorphoAnalyzerLibma(object):
             :type valFilter: Set[MorphCategory]
             :param notValFilter: Stejné jako valFilter s tím rozdílem, že dané hodnoty nesmí pravidlo tvaru obsahovat.
             :type notValFilter:Set[MorphCategory]
+            :param groupFlags: Flagy, které musí mít daná skupina vázající se na slovo.
+            :type groupFlags: Set[Flag]
             :return: Hodnoty dané mluvnické kategorie.
             :rtype: Set[MorphCategory]
             """
@@ -601,11 +643,13 @@ class MorphoAnalyzerLibma(object):
             values=set()
             
             for g in self._groups:
-                values |= g.getAllForCategory(morphCategory, valFilter, notValFilter)
+                if len(g.flags & groupFlags)==len(groupFlags):
+                    #má všechny flagy
+                    values |= g.getAllForCategory(morphCategory, valFilter, notValFilter)
 
             return values
         
-        def getMorphs(self, valFilter: Set[MorphCategory] =set(), notValFilter: Set[MorphCategory] =set(), wordFilter: Set[MorphCategory] =set())->Set[Tuple[MARule,str]]:
+        def getMorphs(self, valFilter: Set[MorphCategory] =set(), notValFilter: Set[MorphCategory] =set(), wordFilter: Set[MorphCategory] =set(), groupFlags:Set[Flag]=set())->Set[Tuple[MARule,str]]:
             """
             Získání tvarů.
             
@@ -625,15 +669,20 @@ class MorphoAnalyzerLibma(object):
                     Příklad: Pokud je vložen 1. pád. Budou brány v úvahu jen tvary, které patří ke skupině tvarů vázajících se na případ
                     že původní slovo je v 1. pádu.
             :type wordFilter: Set[MorphCategory]
+            :param groupFlags: Flagy, které musí mít daná skupina vázající se na slovo.
+            :type groupFlags: Set[Flag]
             :return: Množinu dvojic (pravidlo, tvar).
             :rtype: Set[Tuple[MARule,str]]
             """
             morphs=set()
             
             for g in self._groups:
-                if len(g.getAll(wordFilter)):
-                    morphs |= g.getMorphs(valFilter, notValFilter)
-    
+                
+                if len(g.flags & groupFlags)==len(groupFlags):
+                    #má všechny flagy
+                    if len(g.getAll(wordFilter)):
+                        morphs |= g.getMorphs(valFilter, notValFilter)
+                
             return morphs  
             
         
@@ -646,16 +695,9 @@ class MorphoAnalyzerLibma(object):
             """
             
             return self._groups
-            
-        @property
-        def word(self):
-            """
-            Slovo pro nějž je tato morfologická analýza.
-            """
-            return self._word
         
         def __str__(self):
-            s=self._word+"\n"
+            s=""
             for g in self._groups:
                 s+=str(g)
             s+="----------"
@@ -687,7 +729,7 @@ class MorphoAnalyzerLibma(object):
         self._hint=hint
         #získání informací o slovech
 
-        p = Popen([pathToMa, "-F", "-m"], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        p = Popen([pathToMa, "-F", "-m", "-n"], stdin=PIPE, stdout=PIPE, stderr=PIPE)
         
         output, _ = p.communicate(str.encode(("\n".join(words))+"\n")) #vrací stdout a stderr
         #zkontrolujeme návratový kód
@@ -712,8 +754,33 @@ class MorphoAnalyzerLibma(object):
                 self._wordDatabase[w].addGroup(g)
             except KeyError:
                 #slovo zatím není v databázi
-                self._wordDatabase[w]=self.MAWord(w)
+                self._wordDatabase[w]=self.MAWord()
                 self._wordDatabase[w].addGroup(g)
+               
+        #pro nás je a pouze spojka
+        try:
+            ma=self._wordDatabase["a"]
+
+            delGroups=[group for group in ma.groups if group.rules[0][MorphCategories.POS]!=POS.CONJUNCTION]
+
+            for g in delGroups:
+                ma.delGroup(g)
+  
+        except KeyError:
+            pass
+        
+        #vynecháváme, protože v našem případě nemůžou být písmena podstatným jménem
+        for c in string.ascii_lowercase:
+            try:
+                ma=self._wordDatabase[c]
+
+                for group in ma.groups:
+                    if group.rules[0][MorphCategories.NOTE]==Note.CHARACTER_AS_NOUN:
+                        ma.delGroup(group)
+                        break   #předpokládáme pouze jednu skupinu
+                        
+            except KeyError:
+                pass
 
         
     def _parseMaOutput(self, output):
@@ -745,27 +812,19 @@ class MorphoAnalyzerLibma(object):
                 #vytvoříme skupinu
                 actWordGroup=self.MAWordGroup(parts[1])
                     
-                #nastavíme vzor
-                actWordGroup.paradigm=parts[2][1:-1]
-                    
                 try:
                     #vložíme skupinu do analýzy slova
                     self._wordDatabase[parts[1]].addGroup(actWordGroup)
                 except KeyError:
                     #nové slovo
                     #vytvoříme objekt pro uložení morfologické analýzy slova
-                    self._wordDatabase[parts[1]]=self.MAWord(parts[1])
+                    self._wordDatabase[parts[1]]=self.MAWord()
                     #a znovu vložíme
                     self._wordDatabase[parts[1]].addGroup(actWordGroup)
-
-
-            elif parts[0][:3]=="<l>":
-                #lemma
-                actWordGroup.lemma=parts[0][3:]
                 
             elif parts[0][:3]=="<c>":
                 #značko pravidlo, které sedí pro dané slovo
-
+                
                 if isinstance(self._hint, dict) or isinstance(self._hint, set):
                     #aplikujeme nápovědu
                     convRule=self.MAWordGroup.convTagRule(parts[0][3:])
@@ -775,10 +834,20 @@ class MorphoAnalyzerLibma(object):
                         actWordGroup.addTagRuleConv(convRule)
                 else:
                     actWordGroup.addTagRule(parts[0][3:])
+            elif parts[0][:3]=="<l>":
+                #lemma slova
+                if parts[0][3:][0].islower():
+                    #malé první písmeno u lematu
+                    #nastavujeme jako obecné slovo
+                    #pokud se dále ukáže, že má tato skupina poznámku, pak bude
+                    #tento flag odstraněn samotným objektem třídy MAWordGroup.
+                    actWordGroup.addFlag(Flag.GENERAL_WORD)
+                
                 
             elif parts[0][:3]=="<f>":
                 #Přidání tvaru slova
                 actWordGroup.addMorph((parts[0][3:])[1:-1], parts[1])
+                
         
         #byla předešlá skupina k něčemu dobrá?
         if actWordGroup is not None and len(actWordGroup.rules)==0:
@@ -797,11 +866,10 @@ class MorphoAnalyzerLibma(object):
         :rtype: MAWord 
         """
         
-        if word not in self._wordDatabase:
+        
+        try:
+            return self._wordDatabase[word]
+        except KeyError:
             return None
-        
-        return self._wordDatabase[word]
 
-            
-        
     
