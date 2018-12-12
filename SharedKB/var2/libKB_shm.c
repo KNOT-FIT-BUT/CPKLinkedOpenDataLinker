@@ -38,6 +38,8 @@ limitations under the License.
 #include "global.h"
 #include "libKB_shm.h"
 
+#define VERSION_SIZE 20
+
 /*       _\|/_
          (o o)
  +----oOO-{_}-OOo----+
@@ -157,7 +159,7 @@ char * KBSharedMemDataAt(KBSharedMem *kb, unsigned line, TStrLen col)
 	return KBStringVectorDataAt(&kb->data, line-1, col-1);
 }
 
-unsigned KBSharedMemVersion(KBSharedMem *kb)
+char * KBSharedMemVersion(KBSharedMem *kb)
 {
 	return kb->version;
 }
@@ -314,7 +316,7 @@ int disconnectKB_shm(KBSharedMem *dest, int KB_shm_fd)
 }
 
 
-int getVersionFromSrc(char *KB_path)
+char * getVersionFromSrc(char *KB_path)
 {
 	char *FILENAME = KB_path;
 	int last_letter = 0;  // Poslední načtené písmeno z fce read_line() pro zjištění konce souboru.
@@ -322,8 +324,7 @@ int getVersionFromSrc(char *KB_path)
 	String str_buf;
 	const char *VERSION_PREFIX = "VERSION=";
 	const size_t VERSION_PREFIX_LEN = strlen(VERSION_PREFIX);
-	const int FAIL = -1;
-	unsigned int version;
+	char * version = NULL;
 	
 	int saved_errno = errno;
 	errno = 0;
@@ -332,15 +333,21 @@ int getVersionFromSrc(char *KB_path)
 	infile = open_file_to_read(FILENAME);
 	if (infile == NULL) {
 		perror("open");
-		return EXIT_FAILURE;
+		return NULL;
 	}
 	
 	/* Inicializace */
 	StringInitEmpty( &str_buf );
+	version = malloc(sizeof(char) * (VERSION_SIZE + 1));
+	if (version == NULL) {
+		perror("malloc");
+		return NULL;
+	}
 	
 	#define CHECK_M_FREE() \
 	{ \
 		deleteString( &str_buf ); \
+		free(version); \
 		close_file(FILENAME, infile); \
 	}
 	
@@ -349,7 +356,7 @@ int getVersionFromSrc(char *KB_path)
 	{ \
 		perror( #cond ); \
 		CHECK_M_FREE(); \
-		return FAIL; \
+		return NULL; \
 	}
 	
 	/* Načtení verze */
@@ -358,7 +365,7 @@ int getVersionFromSrc(char *KB_path)
 		CHECK( read_line( &str_buf, infile, &last_letter ) );
 		
 		if (strncmp(VERSION_PREFIX, str_buf.str, VERSION_PREFIX_LEN) == 0) {
-			CHECK( get_num_arg(str_buf.str + VERSION_PREFIX_LEN, &version) );
+			strncpy(version, str_buf.str + VERSION_PREFIX_LEN, VERSION_SIZE);
 			deleteString( &str_buf );
 		}
 	}
@@ -370,25 +377,25 @@ int getVersionFromSrc(char *KB_path)
 	if ( close_file(FILENAME, infile) == EXIT_FAILURE )
 	{
 		perror("close_file");
-		return FAIL;
+		return NULL;
 	}
 	
 	errno = saved_errno;
-	return (int) version;
+	return version;
 }
 
-int getVersionFromBin(char *KB_bin_path)
+char * getVersionFromBin(char *KB_bin_path)
 {
 	int KB_bin_fd = -1;
 	KBSharedMem *KB_bin = NULL;
-	const int FAIL = -1;
-	unsigned int version;
+	char * version = NULL;
 	
 	int saved_errno = errno;
 	errno = 0;
 	
 	#define CHECK_M_FREE() \
 	{ \
+		free(version); \
 		if (KB_bin_fd != -1) \
 		{ \
 			close(KB_bin_fd); \
@@ -400,7 +407,7 @@ int getVersionFromBin(char *KB_bin_path)
 	{ \
 		perror( #cond ); \
 		CHECK_M_FREE(); \
-		return FAIL; \
+		return NULL; \
 	}
 	
 	/* Připojení binárního souboru */
@@ -413,7 +420,7 @@ int getVersionFromBin(char *KB_bin_path)
 	#undef CHECK_M_FREE
 	
 	errno = saved_errno;
-	return (int) version;
+	return version;
 }
 
 /* konec souboru libKB_shm.c */

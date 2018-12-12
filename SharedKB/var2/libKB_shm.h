@@ -53,6 +53,8 @@ limitations under the License.
 // často potřebný hlavičkový soubor
 #include <unistd.h>
 
+#define VERSION_SIZE 20
+
 /*       _\|/_
          (o o)
  +----oOO-{_}-OOo----+
@@ -110,7 +112,7 @@ typedef struct {
 	KBStringVector head;
 	KBStringVector data;
 	size_t capacity;
-	unsigned version;
+	char * version;
 } KBSharedMem;
 
 /*       _\|/_
@@ -171,7 +173,7 @@ char * KBSharedMemDataAt(KBSharedMem *kb, unsigned line, TStrLen col);
 /**
  * Vrací verzi \a kb.
  */
-unsigned KBSharedMemVersion(KBSharedMem *kb);
+char * KBSharedMemVersion(KBSharedMem *kb);
 
 /*       _\|/_
          (o o)
@@ -221,15 +223,15 @@ int disconnectKB_shm(KBSharedMem *dest, int KB_shm_fd);
 
 /**
  * Otevře textový soubor \a KB_path s KB a pokusí se přečíst jeho verzi.
- * @return Pokud vše proběhlo v pořádku vrací číslo verze, jinak číslo < 0 (typicky -1).
+ * @return Pokud vše proběhlo v pořádku vrací číslo verze, jinak prázdný řetězec.
  */
-int getVersionFromSrc(char *KB_path);
+char * getVersionFromSrc(char *KB_path);
 
 /**
  * Otevře binární soubor \a KB_bin_path s KB a pokusí se přečíst jeho verzi.
- * @return Pokud vše proběhlo v pořádku vrací číslo verze, jinak číslo < 0 (typicky -1).
+ * @return Pokud vše proběhlo v pořádku vrací číslo verze, jinak prázdný řetězec.
  */
-int getVersionFromBin(char *KB_bin_path);
+char * getVersionFromBin(char *KB_bin_path);
 
 #endif
 /* konec souboru libKB_shm.h */

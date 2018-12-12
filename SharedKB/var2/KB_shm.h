@@ -38,6 +38,7 @@ limitations under the License.
 #define OFFSET_2_P(pointer, offset) ( (void *)((size_t)(pointer) + (size_t)(offset)) )
 
 #include "global.h"
+#define VERSION_SIZE 20
 
 /*       _\|/_
          (o o)
@@ -84,7 +85,7 @@ typedef struct {
 	KBStringVector head;
 	KBStringVector data;
 	size_t capacity;
-	unsigned version;
+	char * version;
 } KBSharedMem;
 
 /*       _\|/_
