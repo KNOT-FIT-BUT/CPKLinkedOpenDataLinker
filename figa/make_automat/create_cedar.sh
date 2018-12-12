@@ -128,14 +128,19 @@ F_TMP_ENTITIES_WITH_GENDERTYPE="_${F_ENTITIES_WITH_GENDERTYPE}"
 F_TMP_CZECHNAMES="_${F_CZECHNAMES}"
 # Skip generating some files if exist, because they are very time consumed
 if ! test -f "${F_ENTITIES_WITH_GENDERTYPE}"; then
-  python3 get_entities_with_gender_or_type.py -k "$KB" > "${F_TMP_ENTITIES_WITH_GENDERTYPE}"
-  mv "${F_TMP_ENTITIES_WITH_GENDERTYPE}" "${F_ENTITIES_WITH_GENDERTYPE}"
+  # Be careful > "A" in "sed" is Greek char not "A" from Latin(-base) chars.
+  python3 get_entities_with_gender_or_type.py -k "$KB" | LC_ALL=C sort -u > "${F_TMP_ENTITIES_WITH_GENDERTYPE}"
+  cat "${F_TMP_ENTITIES_WITH_GENDERTYPE}" | sed '/Α/Q' > "${F_ENTITIES_WITH_GENDERTYPE}"
 fi
 
 if ! test -f "${F_CZECHNAMES}" || test `stat -c %Y "${F_CZECHNAMES}"` -lt `stat -c %Y "${F_ENTITIES_WITH_GENDERTYPE}"`; then
   python3 czechnames/namegen.py -o "${F_TMP_CZECHNAMES}" "${F_ENTITIES_WITH_GENDERTYPE}" >"${F_TMP_CZECHNAMES}.log" 2>"${F_TMP_CZECHNAMES}.err.log" #-x "${F_CZECHNAMES_INVALID}_gender" -X "${F_CZECHNAMES_INVALID}_inflection" "${F_ENTITIES_WITH_GENDERTYPE}"
+  cat "${F_TMP_ENTITIES_WITH_GENDERTYPE}" | sed -n '/Α/,$p' | sed 's/$/\t/' >> "${F_TMP_CZECHNAMES}"
   mv "${F_TMP_CZECHNAMES}" "${F_CZECHNAMES}"
+
 fi
+
+rm -f "${F_TMP_ENTITIES_WITH_GENDERTYPE}"
 
 #=====================================================================
 # vytvoreni seznamu klicu entit v KB, pridani fragmentu jmen a prijmeni entit a zajmen
@@ -168,7 +173,7 @@ fi
 if ! $URI ; then
   awk '{print $(NF)}' < "$KB" > KB_confidence
   intext_namelist_suffix=
-  
+
   if $LOWERCASE
   then
      intext_namelist_suffix="_lower"
