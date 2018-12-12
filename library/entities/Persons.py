@@ -63,7 +63,9 @@ class Persons():
 			if subname_location:
 				subname_location = subname_location.group()
 			# remove a part of the name with location information (e.g. " of Polestown" from the name "Richard Butler of Polestown")
-			name = regex_location_remove.sub("", name).title()
+			name = regex_location_remove.sub("", name)
+			if name.upper() != name:
+				name = name.title()
 
 			if separate_to_names:
 				# split the name only (without prepositions) to the parts

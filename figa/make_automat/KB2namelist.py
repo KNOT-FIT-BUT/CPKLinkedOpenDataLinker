@@ -85,18 +85,19 @@ def get_subnames_from_parts(subname_parts):
 	return subnames
 
 
-def build_name_variant(ent_flag, inflection_parts, i_inflection_part, stacked_name, name_inflections):
+def build_name_variant(ent_flag, inflection_parts, is_basic_form, i_inflection_part, stacked_name, name_inflections):
 	subnames = set()
 	separator = ''
 	if i_inflection_part < len(inflection_parts):
 		for inflected_part in inflection_parts[i_inflection_part]:
 			if stacked_name and inflected_part:
 				separator = ' '
-			name_inflections, built_subnames = build_name_variant(ent_flag, inflection_parts, i_inflection_part + 1, stacked_name + separator + inflected_part, name_inflections)
+			name_inflections, built_subnames = build_name_variant(ent_flag, inflection_parts, is_basic_form, i_inflection_part + 1, stacked_name + separator + inflected_part, name_inflections)
 			subnames |= built_subnames
 	else:
 		new_name_inflections = set()
 		new_name_inflections.add(stacked_name)
+
 		if ent_flag in ['F', 'M']:
 			match_one_firstname_surnames = regex.match("^([^#]+#[G]E? )(?:[^#]+#[G]E? )+((?:[^# ]+#SE?(?: \p{L}+#[L78]E?)*(?: |$))+)", stacked_name)
 			if match_one_firstname_surnames:
@@ -104,8 +105,16 @@ def build_name_variant(ent_flag, inflection_parts, i_inflection_part, stacked_na
 				if firstname_surnames not in name_inflections:
 					new_name_inflections.add(firstname_surnames)
 
-			subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#GE?)', stacked_name))
-			subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#SE?(?: \p{L}+#[L78])*)', stacked_name))
+			if is_basic_form:
+				firstnames_surnames = regex.match("^((?:[^#]+#[G]E? )+)((?:[^# ]+#SE?(?: |$))+)", stacked_name)
+				if firstnames_surnames:
+					firstnames_surnames = firstnames_surnames.group(1) + firstnames_surnames.group(2).upper()
+					if firstnames_surnames != stacked_name:
+						new_name_inflections.add(firstnames_surnames)
+
+			for n in new_name_inflections:
+				subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#GE?)', n))
+				subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#SE?(?: \p{L}+#[L78])*)', n))
 			subnames = Persons.get_normalized_subnames(subnames)
 		for n in new_name_inflections:
 			name_inflections.add(regex.sub(r'#[A-Za-z0-9]E?(?=-| |$)', '', n))
@@ -122,7 +131,7 @@ def process_czechnames(cznames_file):
 				line = line.strip('\n').split('\t')
 				name = line[0]
 				inflections = line[2].split('|') if line[2] != '' else []
-				for infl in inflections:
+				for idx, infl in enumerate(inflections):
 					inflection_parts = {}
 					for i_infl_part, infl_part in enumerate(infl.split(' ')):
 						inflection_parts[i_infl_part] = set()
@@ -131,7 +140,7 @@ def process_czechnames(cznames_file):
 							inflection_parts[i_infl_part].add(regex.sub(r'(\p{L}*)(\[[^\]]+\])?', '\g<1>', infl_part_variant))
 					if name not in name_inflections:
 						name_inflections[name] = set()
-					built_name_inflections, built_subnames = build_name_variant(line[1], inflection_parts, 0, "", set())
+					built_name_inflections, built_subnames = build_name_variant(line[1], inflection_parts, idx == 0, 0, "", set())
 					name_inflections[name] |= built_name_inflections
 					g_subnames |= built_subnames
 				if len(inflections) == 0 and line[1] in ['F', 'M']:
