@@ -29,7 +29,8 @@ def extract_names_from_line(line):
     return names
 
 
-def append_names_to_list(names, gender_or_type):
+def append_names_to_list(names, gender_or_type, url_origin):
+
     for n in names:
         n = re.sub('\s+', ' ', n).strip()
         if re.search(r"#lang=(?!cs).*$", n):
@@ -41,7 +42,7 @@ def append_names_to_list(names, gender_or_type):
             if x in n:
                 break
         else:
-            name_genderflag.append(n + '\t' + gender_or_type)
+            name_genderflag.append(n + '\t' + gender_or_type + '\t' + url_origin)
 
 
 
@@ -51,15 +52,17 @@ def generate_name_alternatives(kb_path):
             for line in kb:
                 if line:
                     line = line.strip('\n').split('\t')
+
                     ent_type = kb_struct.get_ent_type(line)
+                    names = extract_names_from_line(line)
+                    url_origin = kb_struct.get_data_for(line, 'WIKIPEDIA LINK')
+
                     if ent_type in ['person', 'person:artist', 'person:fictional']:
-                        names = extract_names_from_line(line)
                         gender = kb_struct.get_data_for(line, 'GENDER')
 
-                        append_names_to_list(names, gender)
+                        append_names_to_list(names, gender, url_origin)
                     elif ent_type in ['country', 'country:former', 'settlement', 'watercourse', 'waterarea', 'geo:relief', 'geo:waterfall', 'geo:island', 'geo:peninsula', 'geo:continent']:
-                        names = extract_names_from_line(line)
-                        append_names_to_list(names, 'L')
+                        append_names_to_list(names, 'L', url_origin)
                     else:
                         continue;
 
