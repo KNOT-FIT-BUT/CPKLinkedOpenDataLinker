@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# Typeflags format for person entities => <Type: P=Person>:<Subtype: F/G=Fictional/Group>:<Future purposes: determine regular name and alias>:<Gender: F/M=Female/Male>
+
 import argparse
 import sys
 import os
 import re
 from importlib import reload
+from natToKB import NatToKB
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 reload(sys)
 
@@ -18,8 +21,10 @@ kb_struct = metrics_knowledge_base.KnowledgeBase()
 # multiple values delimiter
 KB_MULTIVALUE_DELIM = metrics_knowledge_base.KB_MULTIVALUE_DELIM
 
-name_genderflag = []
+name_typeflag = []
 
+ntokb = NatToKB()
+nationalities = ntokb.get_nationalities()
 
 def extract_names_from_line(line):
     names = kb_struct.get_data_for(line, 'ALIASES').split(KB_MULTIVALUE_DELIM)
@@ -29,7 +34,7 @@ def extract_names_from_line(line):
     return names
 
 
-def append_names_to_list(names, gender_or_type):
+def append_names_to_list(names, type_flags):
     for n in names:
         n = re.sub('\s+', ' ', n).strip()
         if re.search(r"#lang=(?!cs).*$", n):
@@ -41,7 +46,14 @@ def append_names_to_list(names, gender_or_type):
             if x in n:
                 break
         else:
-            name_genderflag.append(n + '\t' + gender_or_type)
+            if type_flags[0] == 'P':
+                name_without_location = re.sub(r"\s+(?:ze?|of|von)\s+.*", "", n, flags=re.I)
+                a_and_neighbours = re.search(r"((?:[^ ])+)\s+a(?:nd)?\s+((?:[^ ])+)", name_without_location)
+                if a_and_neighbours:
+                    if a_and_neighbours.group(1) not in nationalities or a_and_neighbours.group(2) not in nationalities:
+                        type_flags = re.sub(r"(?<=P:)[^:]*(?=:)", 'G', type_flags)
+                    # else Kateřina Řecká a Dánská" is regular person
+            name_typeflag.append(n + '\t' + type_flags)
 
 
 
@@ -56,15 +68,14 @@ def generate_name_alternatives(kb_path):
                         names = extract_names_from_line(line)
                         gender = kb_struct.get_data_for(line, 'GENDER')
 
-                        # <Type: P=Person>:<Subtype: F=Fictional>:<Future purposes: determine regular name and alias>:<Gender: F/M=Female/Male>
-                        append_names_to_list(names, ("P:::" f ent_type != 'person:fictional' else "P:F::") + gender)
+                        append_names_to_list(names, ("P:::" if ent_type != 'person:fictional' else "P:F::") + gender)
                     elif ent_type in ['country', 'country:former', 'settlement', 'watercourse', 'waterarea', 'geo:relief', 'geo:waterfall', 'geo:island', 'geo:peninsula', 'geo:continent']:
                         names = extract_names_from_line(line)
                         append_names_to_list(names, 'L')
                     else:
                         continue;
 
-        for n in name_genderflag:
+        for n in name_typeflag:
             print(n)
 
 if __name__ == "__main__":
