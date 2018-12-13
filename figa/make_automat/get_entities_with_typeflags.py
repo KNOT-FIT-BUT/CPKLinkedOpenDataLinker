@@ -34,7 +34,7 @@ def extract_names_from_line(line):
     return names
 
 
-def append_names_to_list(names, type_flags):
+def append_names_to_list(names, type_flags, url_origin):
     for n in names:
         n = re.sub('\s+', ' ', n).strip()
         if re.search(r"#lang=(?!cs).*$", n):
@@ -53,7 +53,7 @@ def append_names_to_list(names, type_flags):
                     if a_and_neighbours.group(1) not in nationalities or a_and_neighbours.group(2) not in nationalities:
                         type_flags = re.sub(r"(?<=P:)[^:]*(?=:)", 'G', type_flags)
                     # else Kateřina Řecká a Dánská" is regular person
-            name_typeflag.append(n + '\t' + type_flags)
+            name_typeflag.append(n + '\t' + type_flags + '\t' + url_origin)
 
 
 
@@ -63,15 +63,17 @@ def generate_name_alternatives(kb_path):
             for line in kb:
                 if line:
                     line = line.strip('\n').split('\t')
+
                     ent_type = kb_struct.get_ent_type(line)
+                    names = extract_names_from_line(line)
+                    url_origin = kb_struct.get_data_for(line, 'WIKIPEDIA LINK')
+
                     if ent_type in ['person', 'person:artist', 'person:fictional']:
-                        names = extract_names_from_line(line)
                         gender = kb_struct.get_data_for(line, 'GENDER')
 
-                        append_names_to_list(names, ("P:::" if ent_type != 'person:fictional' else "P:F::") + gender)
+                        append_names_to_list(names, ("P:::" if ent_type != 'person:fictional' else "P:F::") + gender, url_origin)
                     elif ent_type in ['country', 'country:former', 'settlement', 'watercourse', 'waterarea', 'geo:relief', 'geo:waterfall', 'geo:island', 'geo:peninsula', 'geo:continent']:
-                        names = extract_names_from_line(line)
-                        append_names_to_list(names, 'L')
+                        append_names_to_list(names, 'L', url_origin)
                     else:
                         continue;
 
