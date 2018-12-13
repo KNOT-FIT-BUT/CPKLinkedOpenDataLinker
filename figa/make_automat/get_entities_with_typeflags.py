@@ -56,7 +56,8 @@ def generate_name_alternatives(kb_path):
                         names = extract_names_from_line(line)
                         gender = kb_struct.get_data_for(line, 'GENDER')
 
-                        append_names_to_list(names, gender)
+                        # <Type: P=Person>:<Subtype: F=Fictional>:<Future purposes: determine regular name and alias>:<Gender: F/M=Female/Male>
+                        append_names_to_list(names, ("P:::" f ent_type != 'person:fictional' else "P:F::") + gender)
                     elif ent_type in ['country', 'country:former', 'settlement', 'watercourse', 'waterarea', 'geo:relief', 'geo:waterfall', 'geo:island', 'geo:peninsula', 'geo:continent']:
                         names = extract_names_from_line(line)
                         append_names_to_list(names, 'L')
