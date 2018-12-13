@@ -130,17 +130,17 @@ F_TMP_CZECHNAMES="_${F_CZECHNAMES}"
 if ! test -f "${F_ENTITIES_WITH_TYPEFLAGS}"; then
   # Be careful > "A" in "sed" is Greek char not "A" from Latin(-base) chars.
   python3 get_entities_with_typeflags.py -k "$KB" | LC_ALL=C sort -u > "${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
-  cat "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" | sed '/Α/Q' > "${F_ENTITIES_WITH_GENDERTYPE}"
+  cat "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" | sed '/Α/Q' > "${F_ENTITIES_WITH_TYPEFLAGS}"
 fi
 
-if ! test -f "${F_CZECHNAMES}" || test `stat -c %Y "${F_CZECHNAMES}"` -lt `stat -c %Y "${F_ENTITIES_WITH_GENDERTYPE}"`; then
-  python3 czechnames/namegen.py -o "${F_TMP_CZECHNAMES}" "${F_ENTITIES_WITH_GENDERTYPE}" >"${F_TMP_CZECHNAMES}.log" 2>"${F_TMP_CZECHNAMES}.err.log" #-x "${F_CZECHNAMES_INVALID}_gender" -X "${F_CZECHNAMES_INVALID}_inflection" "${F_ENTITIES_WITH_GENDERTYPE}"
+if ! test -f "${F_CZECHNAMES}" || test `stat -c %Y "${F_CZECHNAMES}"` -lt `stat -c %Y "${F_ENTITIES_WITH_TYPEFLAGS}"`; then
+  python3 czechnames/namegen.py -o "${F_TMP_CZECHNAMES}" "${F_ENTITIES_WITH_TYPEFLAGS}" >"${F_TMP_CZECHNAMES}.log" 2>"${F_TMP_CZECHNAMES}.err.log" #-x "${F_CZECHNAMES_INVALID}_gender" -X "${F_CZECHNAMES_INVALID}_inflection" "${F_ENTITIES_WITH_TYPEFLAGS}"
   cat "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" | sed -n '/Α/,$p' | sed 's/$/\t/' >> "${F_TMP_CZECHNAMES}"
   mv "${F_TMP_CZECHNAMES}" "${F_CZECHNAMES}"
 
 fi
 
-rm -f "${F_TMP_ENTITIES_WITH_GENDERTYPE}"
+rm -f "${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
 
 #=====================================================================
 # vytvoreni seznamu klicu entit v KB, pridani fragmentu jmen a prijmeni entit a zajmen
