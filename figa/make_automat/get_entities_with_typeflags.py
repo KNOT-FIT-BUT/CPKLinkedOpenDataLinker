@@ -68,10 +68,15 @@ def generate_name_alternatives(kb_path):
                     names = extract_names_from_line(line)
                     url_origin = kb_struct.get_data_for(line, 'WIKIPEDIA LINK')
 
-                    if ent_type in ['person', 'person:artist', 'person:fictional']:
+                    if ent_type in ['person', 'person:artist', 'person:fictional', 'person:group']:
                         gender = kb_struct.get_data_for(line, 'GENDER')
+                        subtype = ''
 
-                        append_names_to_list(names, ("P:::" if ent_type != 'person:fictional' else "P:F::") + gender, url_origin)
+                        if ent_type == 'person:fictional':
+                            subtype = 'F'
+                        elif ent_type == 'person:group':
+                            subtype = 'G'
+                        append_names_to_list(names, "P:" + subtype + "::" + gender, url_origin)
                     elif ent_type in ['country', 'country:former', 'settlement', 'watercourse', 'waterarea', 'geo:relief', 'geo:waterfall', 'geo:island', 'geo:peninsula', 'geo:continent']:
                         append_names_to_list(names, 'L', url_origin)
                     else:
