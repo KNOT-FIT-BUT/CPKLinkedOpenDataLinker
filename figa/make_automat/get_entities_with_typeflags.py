@@ -46,13 +46,13 @@ def append_names_to_list(names, type_flags, url_origin):
             if x in n:
                 break
         else:
-            if type_flags[0] == 'P':
-                name_without_location = re.sub(r"\s+(?:ze?|of|von)\s+.*", "", n, flags=re.I)
-                a_and_neighbours = re.search(r"((?:[^ ])+)\s+a(?:nd)?\s+((?:[^ ])+)", name_without_location)
-                if a_and_neighbours:
-                    if a_and_neighbours.group(1) not in nationalities or a_and_neighbours.group(2) not in nationalities:
-                        type_flags = re.sub(r"(?<=P:)[^:]*(?=:)", 'G', type_flags)
-                    # else Kateřina Řecká a Dánská" is regular person
+            #if type_flags[0] == 'P':
+                #name_without_location = re.sub(r"\s+(?:ze?|of|von)\s+.*", "", n, flags=re.I)
+                #a_and_neighbours = re.search(r"((?:[^ ])+)\s+a(?:nd)?\s+((?:[^ ])+)", name_without_location)
+                #if a_and_neighbours:
+                    #if a_and_neighbours.group(1) not in nationalities or a_and_neighbours.group(2) not in nationalities:
+                        #type_flags = re.sub(r"(?<=P:)[^:]*(?=:)", 'G', type_flags)
+                    ## else Kateřina Řecká a Dánská" is regular person
             name_typeflag.append(n + '\t' + type_flags + '\t' + url_origin)
 
 
