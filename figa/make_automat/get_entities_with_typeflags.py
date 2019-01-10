@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# Typeflags format for person entities => <Type: P=Person>:<Subtype: F/G=Fictional/Group>:<Future purposes: determine regular name and alias>:<Gender: F/M=Female/Male>
+# Typeflags format for person entities => <Type: P=Person>:<Subtype: F/G=Fictional/Group>:<Name type: <Empty>/N/P=May be regular name/Nickname/Pseudonym>:<Gender: F/M=Female/Male>
 
 import argparse
 import sys
@@ -37,23 +37,38 @@ def extract_names_from_line(line):
 def append_names_to_list(names, type_flags, url_origin):
     for n in names:
         n = re.sub('\s+', ' ', n).strip()
+        name_type_flags = type_flags
+
+        match = re.search(r"#ntype=([^|#]+).*$", n)
+        if match and match.group(1):
+            n = re.sub(r"#ntype=[^|#]+$", "", n)
+            flag_ntype = ''
+            str_ntype = match.group(1)
+
+            if str_ntype == 'nick':
+                flag_ntype = 'N'
+            elif str_ntype == 'pseudo':
+                flag_ntype = 'P'
+            name_type_flags = re.sub(r"(:[MF]?$)", flag_ntype + "\g<1>", name_type_flags)
+
         if re.search(r"#lang=(?!cs).*$", n):
             continue
         else:
-            n = re.sub(r"#lang=cs$", "", n)
+            n = re.sub(r"#lang=cs", "", n)
+
         unsuitable = ";?!()[]{}<>/~@#$%^&*_=+|\"\\"
         for x in unsuitable:
             if x in n:
                 break
         else:
-            #if type_flags[0] == 'P':
+            #if name_type_flags[0] == 'P':
                 #name_without_location = re.sub(r"\s+(?:ze?|of|von)\s+.*", "", n, flags=re.I)
                 #a_and_neighbours = re.search(r"((?:[^ ])+)\s+a(?:nd)?\s+((?:[^ ])+)", name_without_location)
                 #if a_and_neighbours:
                     #if a_and_neighbours.group(1) not in nationalities or a_and_neighbours.group(2) not in nationalities:
-                        #type_flags = re.sub(r"(?<=P:)[^:]*(?=:)", 'G', type_flags)
+                        #name_type_flags = re.sub(r"(?<=P:)[^:]*(?=:)", 'G', name_type_flags)
                     ## else Kateřina Řecká a Dánská" is regular person
-            name_typeflag.append(n + '\t' + type_flags + '\t' + url_origin)
+            name_typeflag.append(n + '\t' + name_type_flags + '\t' + url_origin)
 
 
 
