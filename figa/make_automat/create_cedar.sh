@@ -129,7 +129,7 @@ F_TMP_CZECHNAMES="_${F_CZECHNAMES}"
 # Skip generating some files if exist, because they are very time consumed
 if ! test -f "${F_ENTITIES_WITH_TYPEFLAGS}"; then
   # Be careful > "A" in "sed" is Greek char not "A" from Latin(-base) chars.
-  python3 get_entities_with_typeflags.py -k "$KB" | LC_ALL=C sort -u > "${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
+  python3 get_entities_with_typeflags.py -k "$KB" | awk -F"\t" 'NF>2{key = $1 "\t" $2; a[key] = a[key] (a[key] ? " " : "") $3;};END{for(i in a) print i "\t" a[i]}' | LC_ALL=C sort -u > "${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
   cat "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" | sed '/Α/Q' > "${F_ENTITIES_WITH_TYPEFLAGS}"
 fi
 
