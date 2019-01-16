@@ -1,32 +1,32 @@
 S
-S -> !T_GROUP 1{t=G,r="^.*(?<!ová)$",c=1,n=S,g=F} NOUN_GROUP_START PREP_GROUP !T_GROUP
-S -> !T_GROUP 1{t=S,r="^.*ová$",c=1,n=S,g=F} NOUN_GROUP_START PREP_GROUP !T_GROUP
-S -> !T_GROUP 2{t=G,r="^.*(?<!ová)$",c=1,n=S,g=F} NOUN_GROUP_START PREP_GROUP !T_GROUP	#Chceme i indiánská jména: Sedící sova
-S -> !T_GROUP 2{t=S,r="^.*ová$",c=1,n=S,g=F} NOUN_GROUP_START PREP_GROUP !T_GROUP
+S -> !T_GROUP 1{t=G,r="^.*(?<!ová)$",c=1,n=S,g=F,note?=jG} NOUN_GROUP_START PREP_GROUP !T_GROUP
+S -> !T_GROUP 1{t=S,r="^.*ová$",c=1,n=S,g=F,note?=jS} NOUN_GROUP_START PREP_GROUP !T_GROUP
+S -> !T_GROUP 2{t=G,r="^.*(?<!ová)$",c=1,n=S,g=F,note?=jG} NOUN_GROUP_START PREP_GROUP !T_GROUP	#Chceme i indiánská jména: Sedící sova
+S -> !T_GROUP 2{t=S,r="^.*ová$",c=1,n=S,g=F,note?=jS} NOUN_GROUP_START PREP_GROUP !T_GROUP
 NOUN_GROUP_START -> NOUN_GROUP
 NOUN_GROUP_START -> !NUM_ABBREVIATION_GROUP
 NOUN_GROUP_START -> ε
-NOUN_GROUP -> 1{t=G,c=1,n=S,g=F,r="^.*(?<!ová)$"} NOUN_GROUP
-NOUN_GROUP -> 1{t=S,c=1,n=S,g=F,r="^.*ová$"} NOUN_GROUP
+NOUN_GROUP -> 1{t=G,c=1,n=S,g=F,r="^.*(?<!ová)$",note?=jG} NOUN_GROUP
+NOUN_GROUP -> 1{t=S,c=1,n=S,g=F,r="^.*ová$",note?=jS} NOUN_GROUP
 NOUN_GROUP -> !SURNAME_M_NOUN NOUN_GROUP	#v mužském rodě pouze příjmení
 NOUN_GROUP -> !NUM_ABBREVIATION_GROUP NOUN_GROUP_2
-NOUN_GROUP -> 1{t=S,c=1,n=S,g=F} !NUM_ABBREVIATION_GROUP_EMPTY
-NOUN_GROUP -> 1{t=S,c=1,n=S,g=N} !NUM_ABBREVIATION_GROUP_EMPTY	#Mistryně Oplakávání ze Žebráka
-NOUN_GROUP -> 2{t=S,c=1,n=S,g=F} !NUM_ABBREVIATION_GROUP_EMPTY
-NOUN_GROUP -> 2{t=S,c=1,n=S,g=F} 1{t=S,c=1,n=S,g=F} !NUM_ABBREVIATION_GROUP_EMPTY
+NOUN_GROUP -> 1{t=S,c=1,n=S,g=F,note?=jS} !NUM_ABBREVIATION_GROUP_EMPTY
+NOUN_GROUP -> 1{t=S,c=1,n=S,g=N,note?=jS} !NUM_ABBREVIATION_GROUP_EMPTY	#Mistryně Oplakávání ze Žebráka
+NOUN_GROUP -> 2{t=S,c=1,n=S,g=F,note?=jS} !NUM_ABBREVIATION_GROUP_EMPTY
+NOUN_GROUP -> 2{t=S,c=1,n=S,g=F,note?=jS} 1{t=S,c=1,n=S,g=F,note?=jS} !NUM_ABBREVIATION_GROUP_EMPTY
 NOUN_GROUP -> !SURNAME_M_NOUN !NUM_ABBREVIATION_GROUP_EMPTY
 NOUN_GROUP -> !SURNAME_M_ADJECTIVE !NUM_ABBREVIATION_GROUP_EMPTY
 NOUN_GROUP -> !SURNAME_M_ADJECTIVE !SURNAME_M_NOUN !NUM_ABBREVIATION_GROUP_EMPTY
 
 #nepřechýlená příjmení
-!SURNAME_M_NOUN -> 1{t=S,c=1,n=S,g=M}
-!SURNAME_M_ADJECTIVE -> 2{t=S,c=1,n=S,g=M}
+!SURNAME_M_NOUN -> 1{t=S,c=1,n=S,g=M,note?=jS}
+!SURNAME_M_ADJECTIVE -> 2{t=S,c=1,n=S,g=M,note?=jS}
 
-NOUN_GROUP_2 -> 1{t=S,c=1,n=S,g=F} NOUN_GROUP_3
-NOUN_GROUP_2 -> 2{t=S,c=1,n=S,g=F}
+NOUN_GROUP_2 -> 1{t=S,c=1,n=S,g=F,note?=jS} NOUN_GROUP_3
+NOUN_GROUP_2 -> 2{t=S,c=1,n=S,g=F,note?=jS}
 NOUN_GROUP_2 -> !SURNAME_M_NOUN NOUN_GROUP_3
 NOUN_GROUP_2 -> !SURNAME_M_ADJECTIVE
-NOUN_GROUP_2 -> 1{t=S,c=1,n=S,g=N} NOUN_GROUP_3
+NOUN_GROUP_2 -> 1{t=S,c=1,n=S,g=N,note?=jS} NOUN_GROUP_3
 NOUN_GROUP_3 -> NOUN_GROUP_2
 NOUN_GROUP_3 -> ε
 

@@ -1,12 +1,12 @@
 #!/bin/bash
 #Spuštění experimentů pro testování namegenu.
 
-mkdir testRes/wm/error_words
+mkdir testRes/newFormat/error_words
 
-./namegen.py -o testRes/wm/res.txt testData/entities_with_gendertype_1537441121 -pwm -ew testRes/wm/error_words/error_words.lntrf -gn testRes/wm/given_names.lntrf -sn testRes/wm/surnames.lntrf -l testRes/wm/locations.lntrf 2> testRes/wm/log.txt
+./namegen.py -o testRes/newFormat/res.txt testData/draft_entities_with_typeflags_20181201-1547022551 -in -ew testRes/newFormat/error_words/error_words.lntrf -gn testRes/newFormat/given_names.lntrf -sn testRes/newFormat/surnames.lntrf -l testRes/newFormat/locations.lntrf 2> testRes/newFormat/log.txt
 
 
-cd testRes/wm/error_words/
+cd testRes/newFormat/error_words/
 grep -P "\tjG" error_words.lntrf > error_given_names.lntrf
 grep -P "\tjL" error_words.lntrf > error_locations.lntrf
 grep -P "\tjS" error_words.lntrf > error_surnames.lntrf

@@ -53,7 +53,7 @@ class Terminal(object):
         @property
         def isPOSType(self):
             """
-            Určuje zda-li se jedná o typ terminálu odpovídajícím slovnímu druhu.
+            Určuje zda-li se jedná o typ terminálu odpovídajícím slovnímu druhu + zkratka.
             
             :return: True odpovídá slovnímu druhu. False jinak.
             :rtype: bool
@@ -103,13 +103,14 @@ class Terminal(object):
         """
         Terminálový atributy.
         """
-        
+        VOLUNTARY_ATTRIBUTE_SIGN="?"    #znak volitelného atributu
         
         class Type(Enum):
             """
             Druh atributu.
             """
             
+            #Žádný název by neměl obsahovat znak ? na konci, jelikož určuje volitelný atribut.
             GENDER="g"  #rod slova musí být takový    (filtrovací atribut)
             NUMBER="n"  #mluvnická kategorie číslo. Číslo slova musí být takové. (filtrovací atribut)
             CASE="c"    #pád slova musí být takový    (filtrovací atribut)
@@ -118,7 +119,30 @@ class Terminal(object):
             TYPE="t"    #druh slova ve jméně Křestní, příjmení atd. (Informační atribut)
             MATCH_REGEX="r"    #Slovo samotné sedí na daný regulární výraz. (Speciální atribut)
             #Pokud přidáte nový je třeba upravit Attribute.createFrom a isFiltering
+            
+            def __init__(self, *args):
+                self._voluntary=False
 
+            @property
+            def voluntary(self):
+                """
+                Určuje zda tento type atributu je voluntary.
+                Tato vlastnost se používá při syntaktické analýze a generování tvarů. Pravidlo/tvar je
+                použito pouze tehdy, když má tento typ nebo když ani jeden z ostatních pravidel/tvarů
+                jej nemá.
+                """
+                return self._voluntary
+                
+            @voluntary.setter
+            def voluntary(self, v):
+                """
+                Nastaví voluntary flag. Popis voluntary je v getteru.
+                
+                :param v: Má být voluntary nebo ne?
+                    True znamená voluntary.
+                :type v: bool
+                """
+                self._voluntary=v
 
             @property
             def isFiltering(self):
@@ -171,7 +195,16 @@ class Terminal(object):
             aT, aV= s.strip().split("=", 1)
 
             try:
+                vol=False;
+                if aT[-1]==cls.VOLUNTARY_ATTRIBUTE_SIGN:
+                    #volitelný atribut
+                    vol=True
+                    aT=aT[:-1]
+
                 t=cls.Type(aT)
+                
+                t.voluntary=vol
+                
             except ValueError:
                 #neplatný argumentu
                 
@@ -261,6 +294,14 @@ class Terminal(object):
         
         #pojďme zjistit hodnoty filtrovacích atributů
         self._fillteringAttrVal=set(a.value for a in self._attributes if a.type.isFiltering)
+        self._fillteringAttrValWithoutVoluntary=set(a.value for a in self._attributes if a.type.isFiltering and not a.type.voluntary)
+        
+        if len(self._fillteringAttrVal)-len(self._fillteringAttrValWithoutVoluntary)>1:
+            #dovolujeme pouze 1 volitelny atribut
+            raise InvalidGrammarException(Errors.ErrorMessenger.CODE_GRAMMAR_MULTIPLE_VAL_ATTRIBUTES, \
+                Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_GRAMMAR_MULTIPLE_VAL_ATTRIBUTES))
+            
+        self._hasVoluntaryAttribut=len(self._fillteringAttrVal)!=len(self._fillteringAttrValWithoutVoluntary)
 
         #cache pro zrychlení tokenMatch
         self._matchCache={}
@@ -298,10 +339,30 @@ class Terminal(object):
         Nevybírá informační atributy.
         
         :return: Hodnoty filtrovacích atributů, které má tento terminál.
-        :rtype: Set[Attribute]
+        :rtype: Set[MorphCategory]
         """
     
         return self._fillteringAttrVal
+    
+    @property
+    def hasVoluntaryAttr(self):
+        """
+        Určuje zda terminál má nějaké volitelný atribut.
+        """
+        return self._hasVoluntaryAttribut
+    
+    @property
+    def fillteringAttrValuesWithoutVoluntary(self):
+        """
+        Získání všech hodnot nevolitelných attributů, které kladou dodatečné podmínky (např. rod musí být mužský).
+        Všechny takové attributy mají value typu MorphCategory.
+        Nevybírá informační atributy.
+        
+        :return: Hodnoty filtrovacích atributů, které má tento terminál a nejsou volitelné.
+        :rtype: Set[MorphCategory]
+        """
+    
+        return self._fillteringAttrValWithoutVoluntary
     
     def tokenMatch(self, t):
         """
@@ -363,6 +424,14 @@ class Terminal(object):
                                                   frozenset({StylisticFlag.COLLOQUIALLY}), groupFlags)  #nechceme hovorové
                 
                 #máme všechny možné slovní druhy, které prošly atributovým filtrem 
+                if len(pos)==0 and self.hasVoluntaryAttr:
+                    
+                    #zkusme štěstí ještě pro variantu bez volitelných
+                    pos=t.word.info.getAllForCategory(MorphCategories.POS, self.fillteringAttrValuesWithoutVoluntary, 
+                                                  frozenset({StylisticFlag.COLLOQUIALLY}), groupFlags)
+                    
+                    return self._type.toPOS() in pos
+                
                 return self._type.toPOS() in pos
             else:
                 #pro tento terminál se nepoužívá analyzátor
@@ -618,6 +687,8 @@ class AnalyzedToken(object):
         
         #nejprve vložíme filtrovací atributy
         categories=self.matchingTerminal.fillteringAttrValues.copy()
+        groupFlags=self.matchingTerminal.getAttribute(self.matchingTerminal.Attribute.Type.FLAGS)
+        groupFlags= set() if groupFlags is None else groupFlags.value
         
         
         #můžeme získat další kategorie na základě morfologické analýzy
@@ -626,13 +697,25 @@ class AnalyzedToken(object):
             
             categories.add(self.matchingTerminal.type.toPOS()) #vložíme požadovaný slovní druh do filtru
             
+            #nejprve zkusím s volitelnými atributy
+            
+            #jedná se o typ terminálu používající analyzátor
+            morphsInfo = self._token.word.info.getAll(categories, {StylisticFlag.COLLOQUIALLY}, groupFlags)  # hovorové nechceme
+            
+            if len(morphsInfo)==0:
+                # zkusme štěstí ještě pro variantu bez volitelných atributů
+                categories=self.matchingTerminal.fillteringAttrValuesWithoutVoluntary.copy()
+                categories.add(self.matchingTerminal.type.toPOS())
+                
+                morphsInfo = self._token.word.info.getAll(categories, {StylisticFlag.COLLOQUIALLY}, groupFlags)
+                
             #Například pokud víme, že máme přídavné jméno rodu středního v jednotném čísle
             #a morf. analýza nám řekne, že přídavné jméno může být pouze prvního stupně, tak tuto informaci zařadíme
             #k filtrům
                 
-            for mCat, morphCategoryValues in self._token.word.info.getAll(categories, {StylisticFlag.COLLOQUIALLY}).items():# hovorové nechceme
+            for mCat, morphCategoryValues in morphsInfo.items():
                 if mCat == MorphCategories.NOTE:
-                    #nechceme použít, jelikož se jedná o volitelný atribut
+                    #nechceme použít, jelikož se jedná o nepovinný atribut
                     continue
                 if len(next(iter(morphCategoryValues)).__class__)>len(morphCategoryValues):
                     #danou kategorii má cenu filtrovat jelikož analýza určila, že slovo nemá všechny
@@ -702,8 +785,12 @@ class Rule(object):
                             #neterminál
                             if nonterminals is not None:
                                 nonterminals.add(self.rightSide[i])
-            except:
+            except InvalidGrammarException as e:
                 #došlo k potížím s aktuálním pravidlem
+                raise InvalidGrammarException(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE, 
+                                              Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE)+"\n\t"+x+"\t"+fromString
+                                              +"\n\t"+e.message)
+            except:
                 raise InvalidGrammarException(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE, 
                                               Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE)+"\n\t"+x+"\t"+fromString)
         
@@ -1160,7 +1247,6 @@ class Grammar(object):
                                              Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_GRAMMAR_NOT_IN_LANGUAGE))
                 
                 
-
                 if len(actRules)==1:
                     #jedno možné pravidlo
                     r=next(iter(actRules))
@@ -1172,6 +1258,7 @@ class Grammar(object):
                     #pro každou možnou derivaci zavoláme rekurzivně tuto metodu
                     newRules=[]
                     newATokens=[]
+
                     for r in actRules:
                         try:
                             #prvně aplikujeme pravidlo na nový stack

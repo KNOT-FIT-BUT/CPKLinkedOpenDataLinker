@@ -1,19 +1,19 @@
 S
-S -> !T_GROUP 1{t=G,c=1,n=S,g=M} NOUN_GROUP_START PREP_GROUP !T_GROUP
-S -> !T_GROUP 2{t=G,c=1,n=S,g=M} NOUN_GROUP_START PREP_GROUP !T_GROUP	#Chceme i indiánská jména: Sedící býk
+S -> !T_GROUP 1{t=G,c=1,n=S,g=M,note?=jG} NOUN_GROUP_START PREP_GROUP !T_GROUP
+S -> !T_GROUP 2{t=G,c=1,n=S,g=M,note?=jG} NOUN_GROUP_START PREP_GROUP !T_GROUP	#Chceme i indiánská jména: Sedící býk
 NOUN_GROUP_START -> NOUN_GROUP
 NOUN_GROUP_START -> !NUM_ABBREVIATION_GROUP
 NOUN_GROUP_START -> ε
-NOUN_GROUP -> 1{t=G,c=1,n=S,g=M} NOUN_GROUP
+NOUN_GROUP -> 1{t=G,c=1,n=S,g=M,note?=jG} NOUN_GROUP
 NOUN_GROUP -> !NUM_ABBREVIATION_GROUP NOUN_GROUP_2
-NOUN_GROUP -> 1{t=S,c=1,n=S,g=M} !NUM_ABBREVIATION_GROUP_EMPTY
-NOUN_GROUP -> 1{t=S,c=1,n=S,g=N} !NUM_ABBREVIATION_GROUP_EMPTY	#Jiří Strniště, Mistr Oplakávání ze Žebráka
-NOUN_GROUP -> 2{t=S,c=1,n=S,g=M} !NUM_ABBREVIATION_GROUP_EMPTY
-NOUN_GROUP -> 2{t=S,c=1,n=S,g=M} 1{t=S,c=1,n=S,g=M} !NUM_ABBREVIATION_GROUP_EMPTY
+NOUN_GROUP -> 1{t=S,c=1,n=S,g=M,note?=jS} !NUM_ABBREVIATION_GROUP_EMPTY
+NOUN_GROUP -> 1{t=S,c=1,n=S,g=N,note?=jS} !NUM_ABBREVIATION_GROUP_EMPTY	#Jiří Strniště, Mistr Oplakávání ze Žebráka
+NOUN_GROUP -> 2{t=S,c=1,n=S,g=M,note?=jS} !NUM_ABBREVIATION_GROUP_EMPTY
+NOUN_GROUP -> 2{t=S,c=1,n=S,g=M,note?=jS} 1{t=S,c=1,n=S,g=M,note?=jS} !NUM_ABBREVIATION_GROUP_EMPTY
 
-NOUN_GROUP_2 -> 1{t=S,c=1,n=S,g=M} NOUN_GROUP_3
-NOUN_GROUP_2 -> 1{t=S,c=1,n=S,g=N} NOUN_GROUP_3
-NOUN_GROUP_2 -> 2{t=S,c=1,n=S,g=M}
+NOUN_GROUP_2 -> 1{t=S,c=1,n=S,g=M,note?=jS} NOUN_GROUP_3
+NOUN_GROUP_2 -> 1{t=S,c=1,n=S,g=N,note?=jS} NOUN_GROUP_3
+NOUN_GROUP_2 -> 2{t=S,c=1,n=S,g=M,note?=jS}
 NOUN_GROUP_3 -> NOUN_GROUP_2
 NOUN_GROUP_3 -> ε
 
