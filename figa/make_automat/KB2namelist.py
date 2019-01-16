@@ -120,6 +120,11 @@ def build_name_variant(ent_flag, inflection_parts, is_basic_form, i_inflection_p
 			name_inflections.add(regex.sub(r'#[A-Za-z0-9]E?(?=-| |$)', '', n))
 	return [name_inflections, subnames]
 
+def get_KB_aliases_for(_fields, preserve_flag = False):
+	str_aliases = kb_struct.get_data_for(_fields, 'ALIASES')
+	if not preserve_flag:
+		str_aliases = regex.sub(r"#(?:lang|ntype)=[^#|]*", "", str_aliases)
+	return str_aliases.split(KB_MULTIVALUE_DELIM)
 
 def process_czechnames(cznames_file):
 	global g_subnames
@@ -329,7 +334,7 @@ def add(_key, _value, _type):
 
 """ Processes a line with entity of argument determined type. """
 def add_line_of_type_to_dictionary(_fields, _line_num, alt_names, _type):
-	aliases = kb_struct.get_data_for(_fields, 'ALIASES').split(KB_MULTIVALUE_DELIM)
+	aliases = get_KB_aliases_for(_fields)
 	aliases.append(kb_struct.get_data_for(_fields, 'NAME'))
 	for alias in aliases:
 		transformed_alias = [alias]
@@ -346,7 +351,7 @@ def add_line_of_type_to_dictionary(_fields, _line_num, alt_names, _type):
 def process_person(_fields, _line_num, alt_names):
 	""" Processes a line with entity of person type. """
 
-	aliases = kb_struct.get_data_for(_fields, 'ALIASES').split(KB_MULTIVALUE_DELIM)
+	aliases = get_KB_aliases_for(_fields)
 	aliases.append(kb_struct.get_data_for(_fields, 'NAME'))
 	aliases = (a for a in aliases if a.strip() != "")
 
@@ -371,7 +376,7 @@ def process_person(_fields, _line_num, alt_names):
 def process_artist(_fields, _line_num, alt_names):
 	""" Processes a line with entity of artist type. """
 
-	aliases = kb_struct.get_data_for(_fields, 'ALIASES').split(KB_MULTIVALUE_DELIM)
+	aliases = get_KB_aliases_for(_fields)
 	aliases.append(kb_struct.get_data_for(_fields, 'NAME'))
 	aliases = (a for a in aliases if a.strip() != "")
 
@@ -389,7 +394,7 @@ def process_artist(_fields, _line_num, alt_names):
 def process_fictional(_fields, _line_num, alt_names):
 	""" Processes a line with entity of person:fictional type. """
 
-	aliases = kb_struct.get_data_for(_fields, 'ALIASES').split(KB_MULTIVALUE_DELIM)
+	aliases = get_KB_aliases_for(_fields)
 	aliases.append(kb_struct.get_data_for(_fields, 'NAME'))
 	aliases = (a for a in aliases if a.strip() != "")
 
@@ -466,7 +471,7 @@ def process_nationality(_fields, _line_num):
 def process_mythology(_fields, _line_num):
 	""" Processes a line with entity of mythology type. """
 
-	aliases = kb_struct.get_data_for(_fields, 'ALIASES').split(KB_MULTIVALUE_DELIM)
+	aliases = get_KB_aliases_for(_fields)
 	aliases.append(kb_struct.get_data_for(_fields, 'NAME'))
 	for t in aliases:
 		length = t.count(" ") + 1
