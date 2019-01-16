@@ -41,7 +41,7 @@ def append_names_to_list(names, type_flags, url_origin):
 
         match = re.search(r"#ntype=([^|#]+).*$", n)
         if match and match.group(1):
-            n = re.sub(r"#ntype=[^|#]+$", "", n)
+            n = re.sub(r"#ntype=[^|#]+", "", n)
             flag_ntype = ''
             str_ntype = match.group(1)
 
@@ -49,12 +49,12 @@ def append_names_to_list(names, type_flags, url_origin):
                 flag_ntype = 'N'
             elif str_ntype == 'pseudo':
                 flag_ntype = 'P'
-            name_type_flags = re.sub(r"(:[MF]?$)", flag_ntype + "\g<1>", name_type_flags)
+            name_type_flags = re.sub(r"(:[MF]?(?:\t|$))", flag_ntype + "\g<1>", name_type_flags)
 
-        if re.search(r"#lang=(?!cs).*$", n):
-            continue
+        if re.search(r"#lang=(?:cs|\?{3}).*$", n):
+            n = re.sub(r"#lang=(?:cs|\?{3})", "", n)
         else:
-            n = re.sub(r"#lang=cs", "", n)
+            continue
 
         unsuitable = ";?!()[]{}<>/~@#$%^&*_=+|\"\\"
         for x in unsuitable:
