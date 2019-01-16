@@ -59,6 +59,7 @@ VERBS = {" byl ", " byla ", " je "}
 MENTIONS_TYPE = {
     'person' : {},
     'person:fictional' : {},
+    'person:group' : {},
     'country': {},
     'country:former' : {},
     'settlement' : {},
@@ -1582,7 +1583,7 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
     register = EntityRegister()
     # a set of all possible senses
     global_senses = set()
-    
+
     # getting entities from figa
     figa_entities = get_entities_from_figa(kb, input_string, input_string_in_unicode, lowercase, global_senses, register)
     debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
