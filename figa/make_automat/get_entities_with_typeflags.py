@@ -51,10 +51,12 @@ def append_names_to_list(names, type_flags, url_origin):
                 flag_ntype = 'P'
             name_type_flags = re.sub(r"(:[MF]?(?:\t|$))", flag_ntype + "\g<1>", name_type_flags)
 
-        if re.search(r"#lang=(?:cs|\?{3}).*$", n):
-            n = re.sub(r"#lang=(?:cs|\?{3})", "", n)
-        else:
-            continue
+        lang = ''
+        match = re.search(r"#lang=([^|#]+).*$", n)
+        if match and match.group(1):
+            n = re.sub(r"#lang=[^|#]+", "", n)
+            if (match.group(1) != "???"):
+                lang = match.group(1)
 
         unsuitable = ";?!()[]{}<>/~@#$%^&*_=+|\"\\"
         for x in unsuitable:
@@ -68,7 +70,7 @@ def append_names_to_list(names, type_flags, url_origin):
                     #if a_and_neighbours.group(1) not in nationalities or a_and_neighbours.group(2) not in nationalities:
                         #name_type_flags = re.sub(r"(?<=P:)[^:]*(?=:)", 'G', name_type_flags)
                     ## else Kateřina Řecká a Dánská" is regular person
-            name_typeflag.append(n + '\t' + name_type_flags + '\t' + url_origin)
+            name_typeflag.append(n + '\t' + lang + '\t' + name_type_flags + '\t' + url_origin)
 
 
 
