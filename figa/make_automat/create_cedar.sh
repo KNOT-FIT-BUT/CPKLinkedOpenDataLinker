@@ -128,16 +128,16 @@ F_TMP_ENTITIES_WITH_TYPEFLAGS="_${F_ENTITIES_WITH_TYPEFLAGS}"
 F_TMP_CZECHNAMES="_${F_CZECHNAMES}"
 # Skip generating some files if exist, because they are very time consumed
 if ! test -f "${F_ENTITIES_WITH_TYPEFLAGS}"; then
-  # Be careful > "A" in "sed" is Greek char not "A" from Latin(-base) chars.
+  # Be careful > "Ά" or "Α" in "sed" is foreign char not "A" from Latin(-base) chars.
   python3 get_entities_with_typeflags.py -k "$KB" | awk -F"\t" 'NF>2{key = $1 "\t" $2 "\t" $3; a[key] = a[key] (a[key] ? " " : "") $4;};END{for(i in a) print i "\t" a[i]}' | LC_ALL=C sort -u > "${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
-  cat "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" | sed '/Α/Q' | grep -P "^[^\t]+\t(cs)?\t" | cut -f2 --complement > "${F_ENTITIES_WITH_TYPEFLAGS}"
+  cat "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" | sed '/^[ΆΑ]/Q' | grep -P "^[^\t]+\t(cs)?\t" | cut -f2 --complement > "${F_ENTITIES_WITH_TYPEFLAGS}"
 fi
 
 if ! test -f "${F_CZECHNAMES}" || test `stat -c %Y "${F_CZECHNAMES}"` -lt `stat -c %Y "${F_ENTITIES_WITH_TYPEFLAGS}"`; then
   python3 czechnames/namegen.py -o "${F_TMP_CZECHNAMES}" "${F_ENTITIES_WITH_TYPEFLAGS}" >"${F_TMP_CZECHNAMES}.log" 2>"${F_TMP_CZECHNAMES}.err.log" #-x "${F_CZECHNAMES_INVALID}_gender" -X "${F_CZECHNAMES_INVALID}_inflection" "${F_ENTITIES_WITH_TYPEFLAGS}"
   # Replenish back names, which was filtered out from input to czechnames
-  cat "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" | sed '/Α/Q' | grep -Pv "^[^\t]+\t(cs)?\t" | cut -f2 --complement | sed 's/\([^\t]*$\)/\t\1/' >> "${F_TMP_CZECHNAMES}"
-  cat "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" | sed -n '/Α/,$p' | cut -f2 --complement | sed 's/\([^\t]*$\)/\t\1/' >> "${F_TMP_CZECHNAMES}"
+  cat "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" | sed '/^[ΆΑ]/Q' | grep -Pv "^[^\t]+\t(cs)?\t" | cut -f2 --complement | sed 's/\([^\t]*$\)/\t\1/' >> "${F_TMP_CZECHNAMES}"
+  cat "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" | sed -n '/^[ΆΑ]/,$p' | cut -f2 --complement | sed 's/\([^\t]*$\)/\t\1/' >> "${F_TMP_CZECHNAMES}"
   mv "${F_TMP_CZECHNAMES}" "${F_CZECHNAMES}"
 
 fi
