@@ -232,6 +232,7 @@ class MorphoAnalyzerLibma(object):
     
     """
     
+    MAX_NUMBER_OF_WORDS_PASSED_TO_MA_AT_ONCE=10000
     
     class MAWordGroup():
         """
@@ -725,22 +726,36 @@ class MorphoAnalyzerLibma(object):
             Pokud je předán set, platí nápověda pro všechny slova stejná. Pokud je předán Dict, tak pro každé slovo je jiná (klíč udává slovo pro nějž nápověda platí).
             Pozor pokud se daná morfologická kategorie vůbec v analýze slova nevyskytuj, pak je nápověda ignorována.
         :type hint: :Set[MorphCategory] | Dict[MorphCategory]
+        :raise MorphoAnalyzerException: Chyba analyzátoru.
         """
         self._hint=hint
+        #vytvoříme novou prázdnou databázi slov
+        self._wordDatabase={}
+        
         #získání informací o slovech
-
-        p = Popen([pathToMa, "-F", "-m", "-n"], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-        
-        output, _ = p.communicate(str.encode(("\n".join(words))+"\n")) #vrací stdout a stderr
-        #zkontrolujeme návratový kód
-        rc = p.returncode
-
-        if rc!=0:
-            #selhání analyzátoru
-            raise MorphoAnalyzerException(ErrorMessenger.CODE_MA_FAILURE)
-        
-        self._parseMaOutput(output.decode())
-        
+        wordCnt=0
+        strForMa="" #řetězec, který bude odeslán na vstup ma
+        for word in words:
+            #postupujeme po částech, protože vznikaly problémy při přeposílání velkého množství slov.
+            strForMa+=word+"\n"
+            wordCnt+=1
+            if wordCnt==len(words) or wordCnt%self.MAX_NUMBER_OF_WORDS_PASSED_TO_MA_AT_ONCE==0:
+                p = Popen([pathToMa, "-F", "-m", "-n"], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+                
+                
+                output, _ = p.communicate(str.encode(strForMa)) #vrací stdout a stderr
+                #zkontrolujeme návratový kód
+                rc = p.returncode
+                
+                if rc!=0:
+                    #selhání analyzátoru
+                    raise MorphoAnalyzerException(ErrorMessenger.CODE_MA_FAILURE)
+                
+                self._parseMaOutput(output.decode())
+                
+                #vyčistit pro další část
+                strForMa=""
+            
         
         #přidáme ke slovům von, da a de
         #analýzu, že se jedná o předložky za nimiž se slova ohýbají
@@ -790,10 +805,6 @@ class MorphoAnalyzerLibma(object):
         :param output: Výstup z analyzátoru.
         :type output: str
         """
-        
-        #vytvoříme novou prázdnou databázi slov
-        self._wordDatabase={}
-        
         actWordGroup=None   #obsahuje data k aktuálně parsované skupině
 
         for line in output.splitlines():
