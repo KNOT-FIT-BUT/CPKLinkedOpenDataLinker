@@ -35,38 +35,125 @@ class Name(object):
         pass
 
 
-    class Type(Enum):
+    class Type(object):
         """
         Přípustné druhy jmen.
+        
+        Podporuje rozšířené porovnání pomocí ==.
+        Mimo klasické rovnosti je možné se ptát i například následujícím způsobem.
+        
+        Příklad dotazu na MainType:
+            Je x lokace?
+                x == MainType.LOCATION
+        
+        Příklad dotazu na pohlaví:
+            Je x jméno ženy?
+                x== PersonGender.FEMALE
+        
+        Zjištění zda je druh x plně určen pro výber vhodné gramatiky:
+            x == None
         """
-        MALE="M"
-        FEMALE="F"
-        LOCATION="L"
+        
+        INDEX_OF_MAIN_TYPE=0
+        INDEX_OF_PERSONS_GENDER=3
+        
+        class MainType(Enum):
+            """
+            Hlavní druh jména.
+            """
+            LOCATION="L"
+            PERSON="P"
+            
+            def __str__(self):
+                return self.value
+            
+        class PersonGender(Enum):
+            """
+            Pohlaví osoby.
+            """
+            MALE="M"
+            FEMALE="F"
+            
+            def __str__(self):
+                return self.value
+            
+        def __init__(self, nType):
+            """
+            Vytvoří druh jména.
+            
+            :param nType: Druh jména.
+                #Formát řetězce pro jména osob:
+                #    <Type: P=Person>:<Subtype: F/G=Fictional/Group>:<Future purposes: determine regular name and alias>:<Gender: F/M=Female/Male>
+                #    Pokud se bude měnit formát je nutná úprava v metodě Name.guessType.
+                #Pro názvy lokací je to jen značka L.
+            :type nType: str
+            :raise ValueError: Při nevalidnim vstupu.
+            """
+            
+            self.levels=[x if len(x)>0 else None for x in nType.split(":")]
+            
+            #validace hodnot
+            #prozatím validujeme pouze MainType a PersonGender, protože se toho více nepoužívá.
+            #Ostatní pouze uchováváme pro pozdější výpis a možnost porovnání jmen.
+            
+            self.levels[self.INDEX_OF_MAIN_TYPE]=self.MainType(self.levels[self.INDEX_OF_MAIN_TYPE])
+            if self.levels[self.INDEX_OF_MAIN_TYPE]==self.MainType.PERSON:
+                #Jedná se o osobu, tak validujeme pohlaví.
+                if self.levels[self.INDEX_OF_PERSONS_GENDER] is not None:
+                    self.levels[self.INDEX_OF_PERSONS_GENDER]=self.PersonGender(self.levels[self.INDEX_OF_PERSONS_GENDER])
+
+
+        def __hash__(self):
+            return hash(str(self))
+    
+        def __eq__(self, other):
+            if other is None:
+                if self.levels[self.INDEX_OF_MAIN_TYPE]==self.MainType.PERSON and \
+                    self.levels[self.INDEX_OF_PERSONS_GENDER]==other:
+                    return True
+
+            if isinstance(other, self.__class__):
+                return self.__dict__ == other.__dict__
+            
+            if isinstance(other, self.MainType):
+                if self.levels[self.INDEX_OF_MAIN_TYPE]==other:
+                    return True;
+            
+            if isinstance(other, self.PersonGender):
+                if self.levels[self.INDEX_OF_MAIN_TYPE]==self.MainType.PERSON and \
+                    self.levels[self.INDEX_OF_PERSONS_GENDER]==other:
+                    return True;
+                
+            return False
 
         def __str__(self):
-            return self.value
+            return ":".join("" if x is None else str(x) for x in self.levels)
 
-    def __init__(self, name, nType, wordDatabase:Dict[str,Word]={}):
+    def __init__(self, name, nType, addit=[], wordDatabase:Dict[str,Word]={}):
         """
         Konstruktor jména.
 
         :param name: Řetězec se jménem.
         :type name: String
         :param nType: Druh jména.
-        :type nType: Name.Type
+        :type nType: str
+        :param addit: Přídavné info ke jménu
+        :type addit: List
         :param wordDatabase: Databázee obsahující již vyskytující se slova v předcházejících jménech.
         :type wordDatabase: Dict[str,Word]
         :raise NameCouldntCreateException: Nelze vytvořit jméno.
         """
         self._type=nType
+        self.additionalInfo=addit
+        try:
+            #nejprve převedeme a validujeme druh jména
 
-        if self._type is not None:
-            #typ je určen nemusí se dělat odhad, pouze pokud se jedná o typ určující jméno osoby, tak může být dále případně změněn.
-            try:
-                #nejprve převedeme a validujeme druh jména
+            #Pokud None a předpokládáme název pro osobu,tak později může být určeno její pohlaví
+            #pomocí guessType.
+            if self._type is not None:
                 self._type=self.Type(nType)
-            except KeyError:
-                raise self.NameCouldntCreateException(Errors.ErrorMessenger.CODE_INVALID_INPUT_FILE_UNKNOWN_NAME_TYPE,
+        except ValueError:
+            raise self.NameCouldntCreateException(Errors.ErrorMessenger.CODE_INVALID_INPUT_FILE_UNKNOWN_NAME_TYPE,
                                                       Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_INVALID_INPUT_FILE_UNKNOWN_NAME_TYPE)+"\n\t"+name+"\t"+nType)
 
         #rozdělíme jméno na jednotlivá slova a oddělovače
@@ -101,12 +188,17 @@ class Name(object):
     def printName(self):
         """
         Převede jméno do string. Pokud má jménu typ, tak je přidán. Jméno a typ jsou
-        odděleny tabulátorem.
+        odděleny tabulátorem. Pokud má jméno nějaké přídavní informace, tak je také přidá.
         """
+        
+        res=str(self)
         if self.type:
-            return str(self)+"\t"+str(self.type)
-        else:
-            return self
+            res+="\t"+str(self.type)
+            
+        if len(self.additionalInfo)>0:
+            res+="\t"+("\t".join(self.additionalInfo))
+        
+        return res
 
     def guessType(self, grammars=None, tokens:List[namegenPack.Grammar.Token]=None):
         """
@@ -117,7 +209,7 @@ class Name(object):
         (Dle zadání má být automaticky předpokládána osoba, kde se může stát, že typ není uveden.)
 
         :param grammars: Aktivuje pokročilé určování typů jména na základě gramatik.
-            Klíč je typ jména(self.Type) a hodnota je příslušná gramatika. Pokud jméno patří právě do jednoho jazyka
+            Klíč je pohlaví osoby jména(self.PersonGender) a hodnota je příslušná gramatika. Pokud jméno patří právě do jednoho jazyka
             generovaným jednou z poskytnutých gramatik, tak mu je přiřazen příslušný typ.
         :type grammars: None, Dict[Grammar]
         :param tokens: Tokeny odpovídající tomuto jménu. Tento volitelný parametr je zde zaveden pro zrychlení výpočtu, aby nebylo nutné v některých případech
@@ -128,7 +220,7 @@ class Name(object):
         :rtype aTokens: (List, List) | None
         :raise Word.WordCouldntGetInfoException:Pokud se nepodařilo analyzovat nějaké slovo.
         """
-        if self._type==self.Type.LOCATION:
+        if self._type==self.Type.MainType.LOCATION:
             #lokace -> ponecháváme
             return
         if not tokens:
@@ -149,8 +241,17 @@ class Name(object):
                         if token.word[-3:] == "ová":
                             #muž s přijmení končícím na ová, zřejmě není
                             #změníme typ pokud není ženský
-                            changeTo=self.Type.FEMALE
+                            changeTo=self.Type.PersonGender.FEMALE
                         break
+                elif token.type==namegenPack.Grammar.Token.Type.ANALYZE_UNKNOWN:
+                    #Máme token, který by potřeboval analýzu, ale analyzátor nezná dané slovo.
+                    #Zkusme aspoň bez závislost na slovním druhu (protože ho nezjistíme) otestovat slovo na ová.
+                    if token.word[-3:] == "ová":
+                        #muž s přijmení končícím na ová, zřejmě není
+                        #změníme typ pokud není ženský
+                        changeTo=self.Type.PersonGender.FEMALE
+                    break
+                
         except Word.WordCouldntGetInfoException:
             #nepovedlo se získat informace o slově
             #končíme
@@ -158,13 +259,13 @@ class Name(object):
 
         aTokens=None
         rules=None
-        if changeTo is None and grammars:
+        if changeTo == None and grammars:
             #příjmení nekončí na ová
             for t, g in grammars.items():
                 try:
                     rules, aTokens=g.analyse(tokens)
 
-                    if changeTo is None:
+                    if changeTo == None:
                         #zatím odpovídá jedna gramatika
                         changeTo=t
                     else:
@@ -179,11 +280,20 @@ class Name(object):
 
 
         if changeTo is not None:
-            if self._type is None:
+            if self._type == None:
                 logging.info("Pro "+str(self)+" přiřazuji "+str(changeTo)+".")
-            elif self._type is not changeTo:
-                logging.info("Pro "+str(self)+" měním "+str(self._type)+" na "+str(changeTo)+".")
-            self._type=changeTo
+                if self._type is None:
+                    #Nutné vytvořit celý nový typ.
+                    #Formát pro osoby:
+                    #<Type: P=Person>:<Subtype: F/G=Fictional/Group>:<Future purposes: determine regular name and alias>:<Gender: F/M=Female/Male>
+                    self._type=self.Type("P:::"+str(changeTo))
+                else:
+                    #Stačí jen doplnit gender
+                    self._type.levels[self.Type.INDEX_OF_PERSONS_GENDER]=changeTo
+            
+            elif self._type.levels[self.Type.INDEX_OF_PERSONS_GENDER] is not changeTo:
+                logging.info("Pro "+str(self)+" měním "+str(self._type.levels[self.Type.INDEX_OF_PERSONS_GENDER])+" na "+str(changeTo)+".")
+                self._type.levels[self.Type.INDEX_OF_PERSONS_GENDER]=changeTo
 
         return (rules,aTokens)
 
@@ -275,7 +385,7 @@ class Name(object):
 
         for token in tokens:
             if token.type==namegenPack.Grammar.Token.Type.ANALYZE or token.type==namegenPack.Grammar.Token.Type.ANALYZE_UNKNOWN:
-                if self._type==self.Type.LOCATION:
+                if self._type==self.Type.MainType.LOCATION:
                     types.append(namegenPack.Word.WordTypeMark.LOCATION)
                 else:
                     try:
@@ -302,7 +412,7 @@ class Name(object):
                 logging.info("\t"+str(token.word)+"\t"+str(namegenPack.Word.WordTypeMark.INITIAL_ABBREVIATION)+"\tNa základě lexikální analýzy.")
                 types.append(namegenPack.Word.WordTypeMark.INITIAL_ABBREVIATION)
             elif token.type==namegenPack.Grammar.Token.Type.ROMAN_NUMBER:
-                if self._type!=self.Type.LOCATION:
+                if self._type!=self.Type.MainType.LOCATION:
                     #může být i předložka v, kvůli stejné reprezentaci s římskou číslicí 5
                     if str(token.word)=="v":
                         #jedná se o malé v bez tečky, bereme jako předložku
@@ -333,7 +443,7 @@ class Name(object):
                 break
             if types[i]==namegenPack.Word.WordTypeMark.GIVEN_NAME:
 
-                if (self._type==self.Type.FEMALE or self._type is None) and self._words[i][-3:] == "ová":
+                if (self._type==self.Type.PersonGender.FEMALE or self._type == None) and self._words[i][-3:] == "ová":
                     logging.info("\t"+str(tokens[i].word)+"\t"+str(namegenPack.Word.WordTypeMark.SURNAME)+"\tJedná se o ženské jméno(či neznámého druhu) a slovo končí na ová.")
                     types[i]=namegenPack.Word.WordTypeMark.SURNAME
                 else:
@@ -397,7 +507,7 @@ class Name(object):
                                     #můžeme mít více tvarů daného slova
                                     #toto je jeden z dalších tvarů
                                     morph += "/"
-                                morph+=wordMorph+"["+maRule.lntrf+"]"
+                                morph+=wordMorph+"["+maRule.lntrfWithoutNote+"]"
                                 wordType=aToken.matchingTerminal.getAttribute(namegenPack.Grammar.Terminal.Attribute.Type.TYPE)
                                 if wordType!=WordTypeMark.UNKNOWN:
                                     morph+="#"+str(wordType.value)
@@ -493,22 +603,24 @@ class NameReader(object):
         for line in rInput:
                 line = line.strip()
                 parts = line.split("\t")
-                if len(parts) != 2:
-                    if len(parts) > 2:
+
+                if len(parts)<2:
+                    if len(parts)==0:
                         # nevalidní formát vstupu
                         print(Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_INVALID_NAME) + "\t" + line, file=sys.stderr)
                         self._errorCnt += 1
                         continue
-
                     # Necháme provést odhad typu slova.
                     # Dle zadání má být automaticky předpokládána osoba, kde se může stát, že typ není uveden.
                     # Řešeno v Name
                     parts.append(None)
 
-                # provedeme analýzu jména a uložíme je
                 try:
+                    additInfo=[]    #přídavné info, například URL odkaď název/jméno pochází
+                    if len(parts)>2:
+                        additInfo=parts[2:]
                     # Přidáváme wordDatabase pro ušetření paměti
-                    self.names.append(Name(parts[0], parts[1], wordDatabase))
+                    self.names.append(Name(parts[0], parts[1], additInfo, wordDatabase))
                 except Name.NameCouldntCreateException as e:
                     # problém při vytváření jména
                     print(e.message, file=sys.stderr)

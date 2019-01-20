@@ -445,6 +445,12 @@ class Note(MorphCategory):
     LOCATION="jL"
     """Vyjadřuje místo"""
     
+    GIVEN_NAME="jG"
+    """Vyjadřuje křestní jméno."""
+    
+    SURNAME="jS"
+    """Vyjadřuje príjmení."""
+    
     CHARACTER_AS_NOUN="iP"
     """
     Nenašel jsem v dokumentaci. Jen odvozuji na základě pozorování.
