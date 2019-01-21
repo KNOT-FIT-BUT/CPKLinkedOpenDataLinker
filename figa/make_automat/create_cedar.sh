@@ -135,9 +135,6 @@ fi
 
 if ! test -f "${F_CZECHNAMES}" || test `stat -c %Y "${F_CZECHNAMES}"` -lt `stat -c %Y "${F_ENTITIES_WITH_TYPEFLAGS}"`; then
   python3 czechnames/namegen.py -o "${F_TMP_CZECHNAMES}" "${F_ENTITIES_WITH_TYPEFLAGS}" >"${F_TMP_CZECHNAMES}.log" 2>"${F_TMP_CZECHNAMES}.err.log" #-x "${F_CZECHNAMES_INVALID}_gender" -X "${F_CZECHNAMES_INVALID}_inflection" "${F_ENTITIES_WITH_TYPEFLAGS}"
-  # Replenish back names, which was filtered out from input to czechnames
-  cat "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" | sed '/^[ΆΑ]/Q' | grep -Pv "^[^\t]+\t(cs)?\t" | cut -f2 --complement | sed 's/\([^\t]*$\)/\t\1/' >> "${F_TMP_CZECHNAMES}"
-  cat "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" | sed -n '/^[ΆΑ]/,$p' | cut -f2 --complement | sed 's/\([^\t]*$\)/\t\1/' >> "${F_TMP_CZECHNAMES}"
   mv "${F_TMP_CZECHNAMES}" "${F_CZECHNAMES}"
 
 fi
