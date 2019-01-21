@@ -287,6 +287,8 @@ def add_to_dictionary(_key, _nametype, _value, _type, _fields, alt_names):
 				if not regex.search("\.$", key_inflection): # do not consider "Karel IV."
 					add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<2>, \g<1>", key_inflection), _value, _type) # Adolf Born -> Born, Adolf
 					add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<2>, \g<1>.", key_inflection), _value, _type) # Adolf Born -> Born, A.
+					add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<3>, \g<1> \g<2>", key_inflection), _value, _type) # Tomáš Garrigue Masaryk -> Masaryk, Tomáš Garrigue
+					add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<3>, \g<1>. \g<2>.", key_inflection), _value, _type) # Tomáš Garrigue Masaryk -> Masaryk, T. G.
 			if "Mc" in key_inflection:
 				add(regex.sub(r"Mc(\p{Lu})", "Mc \g<1>", key_inflection), _value, _type) # McCollum -> Mc Collum
 				add(regex.sub(r"Mc (\p{Lu})", "Mc\g<1>", key_inflection), _value, _type) # Mc Collum -> McCollum
