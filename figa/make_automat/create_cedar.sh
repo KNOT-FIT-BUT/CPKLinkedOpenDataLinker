@@ -139,7 +139,7 @@ if ! test -f "${F_CZECHNAMES}" || test `stat -c %Y "${F_CZECHNAMES}"` -lt `stat 
 
 fi
 
-rm -f "${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
+#rm -f "${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
 
 #=====================================================================
 # vytvoreni seznamu klicu entit v KB, pridani fragmentu jmen a prijmeni entit a zajmen
