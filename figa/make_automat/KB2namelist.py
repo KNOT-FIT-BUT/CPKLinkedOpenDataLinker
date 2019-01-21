@@ -276,12 +276,17 @@ def add_to_dictionary(_key, _nametype, _value, _type, _fields, alt_names):
 
 		if _type in ["person", "person:artist", "person:fictional"]:
 			if _nametype != "nick":
-				add(regex.sub(r"(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<1>. \g<2>", key_inflection), _value, _type) # Adolf Born -> A. Born
-				add(regex.sub(r"(\p{Lu})\p{Ll}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<1>. \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> P. P. Rubens
-				add(regex.sub(r"(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<1> \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> Peter P. Rubens
+				add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>", key_inflection), _value, _type) # Adolf Born -> A. Born
+				add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> P. P. Rubens
+				add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1> \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> Peter P. Rubens
+				add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>. \g<3>. \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> J. G. B. Bach
+				add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<1>. \g<2>. \g<3> \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> J. G. Bernhard Bach
+				add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1> \g<2>. \g<3>. \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> Johann G. B. Bach
+				add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<1> \g<2>. \g<3> \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> Johann G. Bernhard Bach
+				add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1> \g<2> \g<3>. \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> Johann Gottfried B. Bach
 				if not regex.search("\.$", key_inflection): # do not consider "Karel IV."
-					add(regex.sub(r"(\p{Lu}\p{L}+) (\p{Lu}\p{L}+)", "\g<2>, \g<1>", key_inflection), _value, _type) # Adolf Born -> Born, Adolf
-					add(regex.sub(r"(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<2>, \g<1>.", key_inflection), _value, _type) # Adolf Born -> Born, A.
+					add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<2>, \g<1>", key_inflection), _value, _type) # Adolf Born -> Born, Adolf
+					add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<2>, \g<1>.", key_inflection), _value, _type) # Adolf Born -> Born, A.
 			if "Mc" in key_inflection:
 				add(regex.sub(r"Mc(\p{Lu})", "Mc \g<1>", key_inflection), _value, _type) # McCollum -> Mc Collum
 				add(regex.sub(r"Mc (\p{Lu})", "Mc\g<1>", key_inflection), _value, _type) # Mc Collum -> McCollum
