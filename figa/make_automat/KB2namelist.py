@@ -120,11 +120,39 @@ def build_name_variant(ent_flag, inflection_parts, is_basic_form, i_inflection_p
 			name_inflections.add(regex.sub(r'#[A-Za-z0-9]E?(?=-| |$)', '', n))
 	return [name_inflections, subnames]
 
-def get_KB_aliases_for(_fields, preserve_flag = False):
+# not used
+def get_KB_names_for(_fields, preserve_flag = False):
+	names = dict()
+	str_name = kb_struct.get_data_for(_fields, 'NAME')
 	str_aliases = kb_struct.get_data_for(_fields, 'ALIASES')
 	if not preserve_flag:
 		str_aliases = regex.sub(r"#(?:lang|ntype)=[^#|]*", "", str_aliases)
-	return str_aliases.split(KB_MULTIVALUE_DELIM)
+
+	names = [str_name]
+	for alias in str_aliases.split(KB_MULTIVALUE_DELIM):
+		alias = alias.strip()
+		if alias and alias not in names:
+			names.append(alias)
+	return names
+
+def get_KB_names_ntypes_for(_fields):
+	names = dict()
+	str_name = kb_struct.get_data_for(_fields, 'NAME')
+	str_aliases = kb_struct.get_data_for(_fields, 'ALIASES')
+	str_aliases = regex.sub(r"#lang=[^#|]*", "", str_aliases)
+
+	names[str_name] = None
+	for alias in str_aliases.split(KB_MULTIVALUE_DELIM):
+		ntype = regex.search(r"#ntype=([^#|]*)", alias)
+		if ntype:
+			ntype = ntype.group(1)
+		if not ntype: # unify also for previous
+			ntype = None
+		k_alias = regex.sub(r"#ntype=[^#|]*", "", alias).strip()
+		if k_alias and k_alias not in names:
+			names[k_alias] = ntype
+	return names
+
 
 def process_czechnames(cznames_file):
 	global g_subnames
@@ -153,7 +181,7 @@ def process_czechnames(cznames_file):
 
 	return name_inflections
 
-def add_to_dictionary(_key, _value, _type, _fields, alt_names):
+def add_to_dictionary(_key, _nametype, _value, _type, _fields, alt_names):
 	"""
 	 Adds the name into the dictionary. For each name it adds also an alternative without accent.
 
@@ -216,9 +244,8 @@ def add_to_dictionary(_key, _value, _type, _fields, alt_names):
 		key_inflections = alt_names[_key]
 	if not key_inflections:
 		key_inflections = set([_key]) # TODO alternative names are not in subnames
-		if _type in ["person", "person:artist", "person:fictional"]:
+		if _type in ["person", "person:artist", "person:fictional"] and _nametype != "nick":
 			g_subnames |= Persons.get_normalized_subnames(set([_key]), True)
-
 
 	# All following transformatios will be performed for each of inflection variant of key_inflection
 	for key_inflection in key_inflections:
@@ -248,12 +275,13 @@ def add_to_dictionary(_key, _value, _type, _fields, alt_names):
 				add(regex.sub(r'(Sv\. ?|Sv )', 'Svatý ', key_inflection), _value, _type) # Sv. Jan / Sv.Jan / Sv Jan -> Svatý Jan
 
 		if _type in ["person", "person:artist", "person:fictional"]:
-			add(regex.sub(r"(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<1>. \g<2>", key_inflection), _value, _type) # Adolf Born -> A. Born
-			add(regex.sub(r"(\p{Lu})\p{Ll}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<1>. \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> P. P. Rubens
-			add(regex.sub(r"(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<1> \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> Peter P. Rubens
-			if not regex.search("\.$", key_inflection): # do not consider "Karel IV."
-				add(regex.sub(r"(\p{Lu}\p{L}+) (\p{Lu}\p{L}+)", "\g<2>, \g<1>", key_inflection), _value, _type) # Adolf Born -> Born, Adolf
-				add(regex.sub(r"(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<2>, \g<1>.", key_inflection), _value, _type) # Adolf Born -> Born, A.
+			if _nametype != "nick":
+				add(regex.sub(r"(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<1>. \g<2>", key_inflection), _value, _type) # Adolf Born -> A. Born
+				add(regex.sub(r"(\p{Lu})\p{Ll}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<1>. \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> P. P. Rubens
+				add(regex.sub(r"(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<1> \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> Peter P. Rubens
+				if not regex.search("\.$", key_inflection): # do not consider "Karel IV."
+					add(regex.sub(r"(\p{Lu}\p{L}+) (\p{Lu}\p{L}+)", "\g<2>, \g<1>", key_inflection), _value, _type) # Adolf Born -> Born, Adolf
+					add(regex.sub(r"(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)", "\g<2>, \g<1>.", key_inflection), _value, _type) # Adolf Born -> Born, A.
 			if "Mc" in key_inflection:
 				add(regex.sub(r"Mc(\p{Lu})", "Mc \g<1>", key_inflection), _value, _type) # McCollum -> Mc Collum
 				add(regex.sub(r"Mc (\p{Lu})", "Mc\g<1>", key_inflection), _value, _type) # Mc Collum -> McCollum
@@ -334,9 +362,8 @@ def add(_key, _value, _type):
 
 """ Processes a line with entity of argument determined type. """
 def add_line_of_type_to_dictionary(_fields, _line_num, alt_names, _type):
-	aliases = get_KB_aliases_for(_fields)
-	aliases.append(kb_struct.get_data_for(_fields, 'NAME'))
-	for alias in aliases:
+	aliases = get_KB_names_ntypes_for(_fields)
+	for alias, ntype in aliases.items():
 		transformed_alias = [alias]
 		if _type == "event":
 			if len(alias) > 1:
@@ -345,25 +372,22 @@ def add_line_of_type_to_dictionary(_fields, _line_num, alt_names, _type):
 			transformed_alias = [alias, ' '.join(word[0].upper() + word[1:] if len(word) > 1 else word for word in alias.split())] # title also destroys other uppercase letters in word to lowercase
 
 		for ta in transformed_alias:
-			add_to_dictionary(ta, _line_num, _type, _fields, alt_names)
+			add_to_dictionary(ta, ntype, _line_num, _type, _fields, alt_names)
 
 
 def process_person(_fields, _line_num, alt_names):
 	""" Processes a line with entity of person type. """
 
-	aliases = get_KB_aliases_for(_fields)
-	aliases.append(kb_struct.get_data_for(_fields, 'NAME'))
-	aliases = (a for a in aliases if a.strip() != "")
-
+	aliases = get_KB_names_ntypes_for(_fields)
 	name = kb_struct.get_data_for(_fields, 'NAME')
 	confidence = float(kb_struct.get_data_for(_fields, 'CONFIDENCE'))
 
 	CONFIDENCE_THRESHOLD = 20
 
-	for t in aliases:
-		length = t.count(" ") + 1
+	for n, t in aliases.items():
+		length = n.count(" ") + 1
 		if length >= 2 or confidence >= CONFIDENCE_THRESHOLD:
-			add_to_dictionary(t, _line_num, "person", _fields, alt_names)
+			add_to_dictionary(n, t, _line_num, "person", _fields, alt_names)
 
 #	if confidence >= CONFIDENCE_THRESHOLD:
 #		surname_match = SURNAME_MATCH.search(name)
@@ -376,9 +400,7 @@ def process_person(_fields, _line_num, alt_names):
 def process_artist(_fields, _line_num, alt_names):
 	""" Processes a line with entity of artist type. """
 
-	aliases = get_KB_aliases_for(_fields)
-	aliases.append(kb_struct.get_data_for(_fields, 'NAME'))
-	aliases = (a for a in aliases if a.strip() != "")
+	aliases = get_KB_names_ntypes_for(_fields)
 
 	name = kb_struct.get_data_for(_fields, 'NAME')
 	confidence = float(kb_struct.get_data_for(_fields, 'CONFIDENCE'))
@@ -386,17 +408,15 @@ def process_artist(_fields, _line_num, alt_names):
 
 	CONFIDENCE_THRESHOLD = 15
 
-	for t in aliases:
-		length = t.count(" ") + 1
+	for n, t in aliases.items():
+		length = n.count(" ") + 1
 		if length >= 2 or confidence >= CONFIDENCE_THRESHOLD:
-			add_to_dictionary(t, _line_num, "person:artist", _fields, alt_names)
+			add_to_dictionary(n, t, _line_num, "person:artist", _fields, alt_names)
 
 def process_fictional(_fields, _line_num, alt_names):
 	""" Processes a line with entity of person:fictional type. """
 
-	aliases = get_KB_aliases_for(_fields)
-	aliases.append(kb_struct.get_data_for(_fields, 'NAME'))
-	aliases = (a for a in aliases if a.strip() != "")
+	aliases = get_KB_names_ntypes_for(_fields)
 
 	name = kb_struct.get_data_for(_fields, 'NAME')
 	confidence = float(kb_struct.get_data_for(_fields, 'CONFIDENCE'))
@@ -404,10 +424,10 @@ def process_fictional(_fields, _line_num, alt_names):
 
 	CONFIDENCE_THRESHOLD = 15
 
-	for t in aliases:
-		length = t.count(" ") + 1
+	for n, t in aliases.items():
+		length = n.count(" ") + 1
 		if length >= 2 or confidence >= CONFIDENCE_THRESHOLD:
-			add_to_dictionary(t, _line_num, "person:fictional", _fields, alt_names)
+			add_to_dictionary(n, t, _line_num, "person:fictional", _fields, alt_names)
 
 #	if confidence >= CONFIDENCE_THRESHOLD:
 #		surname_match = SURNAME_MATCH.search(name)
