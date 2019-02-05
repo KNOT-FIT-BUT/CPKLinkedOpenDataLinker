@@ -122,6 +122,7 @@ class KnowledgeBase:
 		# lists of metrics values in kb for computing percentiles
 		self.metrics = {'person':{'description_length':[], 'columns_number':[], 'wiki_backlinks':[], 'wiki_hits':[], 'wiki_ps':[]},
 				'person:fictional':{'description_length':[], 'columns_number':[], 'wiki_backlinks':[], 'wiki_hits':[], 'wiki_ps':[]},
+				'person:group':{'description_length':[], 'columns_number':[], 'wiki_backlinks':[], 'wiki_hits':[], 'wiki_ps':[]},
 				'country':{'description_length':[], 'columns_number':[], 'wiki_backlinks':[], 'wiki_hits':[], 'wiki_ps':[]},
 				'country:former':{'description_length':[], 'columns_number':[], 'wiki_backlinks':[], 'wiki_hits':[], 'wiki_ps':[]},
 				'settlement':{'description_length':[], 'columns_number':[], 'wiki_backlinks':[], 'wiki_hits':[], 'wiki_ps':[]},
@@ -151,6 +152,7 @@ class KnowledgeBase:
 		# data structure for indexing percentile scores
 		self.metric_index = {'person':{'description_length':{}, 'columns_number':{}, 'wiki_backlinks':{}, 'wiki_hits':{}, 'wiki_ps':{}},
 					'person:fictional':{'description_length':{}, 'columns_number':{}, 'wiki_backlinks':{}, 'wiki_hits':{}, 'wiki_ps':{}},
+					'person:group':{'description_length':{}, 'columns_number':{}, 'wiki_backlinks':{}, 'wiki_hits':{}, 'wiki_ps':{}},
 					'country':{'description_length':{}, 'columns_number':{}, 'wiki_backlinks':{}, 'wiki_hits':{}, 'wiki_ps':{}},
 					'country:former':{'description_length':{}, 'columns_number':{}, 'wiki_backlinks':{}, 'wiki_hits':{}, 'wiki_ps':{}},
 					'settlement':{'description_length':{}, 'columns_number':{}, 'wiki_backlinks':{}, 'wiki_hits':{}, 'wiki_ps':{}},
