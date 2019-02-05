@@ -68,6 +68,11 @@ KB_MULTIVALUE_DELIM = metrics_knowledge_base.KB_MULTIVALUE_DELIM
 #SURNAME_MATCH = regex.compile(r"(((?<=^)|(?<=[ ]))(da |von )?((\p{Lu}\p{Ll}*-)?(\p{Lu}\p{Ll}+))$)")
 #UNWANTED_MATCH = regex.compile(r"(Princ|Svatý|,|z|[0-9])")
 
+re_flag_names = r"(?:#[A-Z0-9]E?)"
+re_flag_only1st_firstname = r"(?:#[GI]E?)"
+re_flag_firstname = r"(?:#[G]E?)"
+re_flag_sure_surname = r"(?:#[^GI]E?)"
+
 
 ''' For firstnames or surnames it creates subnames of each separate name and also all names together '''
 def get_subnames_from_parts(subname_parts):
@@ -85,14 +90,14 @@ def get_subnames_from_parts(subname_parts):
 	return subnames
 
 
-def build_name_variant(ent_flag, inflection_parts, is_basic_form, i_inflection_part, stacked_name, name_inflections):
+def build_name_variant(ent_flag, strip_nameflags, inflection_parts, is_basic_form, i_inflection_part, stacked_name, name_inflections):
 	subnames = set()
 	separator = ''
 	if i_inflection_part < len(inflection_parts):
 		for inflected_part in inflection_parts[i_inflection_part]:
 			if stacked_name and inflected_part:
 				separator = ' '
-			name_inflections, built_subnames = build_name_variant(ent_flag, inflection_parts, is_basic_form, i_inflection_part + 1, stacked_name + separator + inflected_part, name_inflections)
+			name_inflections, built_subnames = build_name_variant(ent_flag, strip_nameflags, inflection_parts, is_basic_form, i_inflection_part + 1, stacked_name + separator + inflected_part, name_inflections)
 			subnames |= built_subnames
 	else:
 		new_name_inflections = set()
@@ -117,7 +122,7 @@ def build_name_variant(ent_flag, inflection_parts, is_basic_form, i_inflection_p
 				subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#SE?(?: \p{L}+#[L78])*)', n))
 			subnames = Persons.get_normalized_subnames(subnames)
 		for n in new_name_inflections:
-			name_inflections.add(regex.sub(r'#[A-Za-z0-9]E?(?=-| |$)', '', n))
+			name_inflections.add(regex.sub(r'#[A-Za-z0-9]E?(?=-| |$)', '', n) if strip_nameflags else n)
 	return [name_inflections, subnames]
 
 # not used
@@ -154,7 +159,7 @@ def get_KB_names_ntypes_for(_fields):
 	return names
 
 
-def process_czechnames(cznames_file):
+def process_czechnames(cznames_file, strip_nameflags = True):
 	global g_subnames
 	name_inflections = {}
 
@@ -169,11 +174,10 @@ def process_czechnames(cznames_file):
 					for i_infl_part, infl_part in enumerate(infl.split(' ')):
 						inflection_parts[i_infl_part] = set()
 						for infl_part_variant in infl_part.split('/'):
-							#clean_name = regex.sub(r'(\p{L}*)(\[[^\]]+\])?(#[A-Za-z0-9])?', '\g<1>', infl_part_variant)
 							inflection_parts[i_infl_part].add(regex.sub(r'(\p{L}*)(\[[^\]]+\])?', '\g<1>', infl_part_variant))
 					if name not in name_inflections:
 						name_inflections[name] = set()
-					built_name_inflections, built_subnames = build_name_variant(line[1], inflection_parts, idx == 0, 0, "", set())
+					built_name_inflections, built_subnames = build_name_variant(line[1], strip_nameflags, inflection_parts, idx == 0, 0, "", set())
 					name_inflections[name] |= built_name_inflections
 					g_subnames |= built_subnames
 				if len(inflections) == 0 and line[1] in ['F', 'M']:
@@ -279,26 +283,68 @@ def add_to_dictionary(_key, _nametype, _value, _type, _fields, alt_names):
 
 		if _type in ["person", "person:artist", "person:fictional"]:
 			if _nametype != "nick":
-				add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>", key_inflection), _value, _type) # Adolf Born -> A. Born
-				add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> P. P. Rubens
-				add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1> \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> Peter P. Rubens
-				add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>. \g<3>. \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> J. G. B. Bach
-				add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<1>. \g<2>. \g<3> \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> J. G. Bernhard Bach
-				add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1> \g<2>. \g<3>. \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> Johann G. B. Bach
-				add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<1> \g<2>. \g<3> \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> Johann G. Bernhard Bach
-				add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1> \g<2> \g<3>. \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> Johann Gottfried B. Bach
-				if not regex.search("\.$", key_inflection): # do not consider "Karel IV."
-					add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<2>, \g<1>", key_inflection), _value, _type) # Adolf Born -> Born, Adolf
-					add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<2>, \g<1>.", key_inflection), _value, _type) # Adolf Born -> Born, A.
-					add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<3>, \g<1> \g<2>", key_inflection), _value, _type) # Tomáš Garrigue Masaryk -> Masaryk, Tomáš Garrigue
-					add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<3>, \g<1>. \g<2>.", key_inflection), _value, _type) # Tomáš Garrigue Masaryk -> Masaryk, T. G.
+				if regex.search(r"#", key_inflection):
+					# TODO: what about abbreviation of Mao ce-Tung?
+					#							 ( <firstname>  ) ( <other firstnames>         )( <unknowns>   )( <surnames>       )
+					name_parts = regex.search(r"^((?:\p{Lu}')?\p{Lu}\p{L}+%s) ((?:(?:(?:\p{Lu}')?\p{L}+#I )*(?:\p{Lu}')?\p{L}+%s )*)((?:(?:\p{Lu}')?\p{L}+#I )*)((?:\p{Lu}')?\p{Lu}\p{L}+(%s).*)$" % (re_flag_only1st_firstname, re_flag_firstname, re_flag_sure_surname), key_inflection)
+					if name_parts:
+						fn_1st = name_parts.group(1)
+						tmp_fn_others = name_parts.group(2).strip().split()
+						n_unknowns = name_parts.group(3).strip().split()
+						tmp_sn_all = name_parts.group(4)
+						if name_parts.group(5) not in ['#S', '#SE', '#R'] and len(n_unknowns):
+							tmp_sn = n_unknowns.pop()
+							if tmp_sn:
+								tmp_sn_all = tmp_sn + ' ' + tmp_sn_all
+
+						for i in range(len(n_unknowns) + 1):
+							sep_special = ""
+							fn_others_full = ""
+							fn_others_abbr = ""
+
+							fn_others = tmp_fn_others + n_unknowns[:i]
+							if len(fn_others):
+								sep_special = " "
+								fn_others_full += " ".join(fn_others)
+								for fn_other in fn_others:
+									fn_others_abbr += fn_other[:1] + ". "
+								fn_others_abbr = fn_others_abbr.strip()
+
+							sn_all = ' '.join(n_unknowns[i:])
+							if sn_all:
+								sn_all += ' ' + tmp_sn_all
+							else:
+								sn_all = tmp_sn_all
+
+							# For all of following format exaplaining comments of additions let us assume, that Johann Gottfried Bernhard is firstnames and a surname is Bach only.
+							add("{} {}{}{}".format(fn_1st, fn_others_abbr, sep_special, sn_all), _value, _type)       # Johann G. B. Bach
+							add("{}. {}{}{}".format(fn_1st[:1], fn_others_abbr, sep_special, sn_all), _value, _type)  # J. G. B. Bach
+							add("{}, {}{}{}".format(sn_all, fn_1st, sep_special, fn_others_full), _value, _type)      # Bach, Johann Gottfried Bernhard
+							add("{}, {}{}{}".format(sn_all, fn_1st, sep_special, fn_others_abbr), _value, _type) # Bach, Johann G. B.
+							add("{}, {}.{}{}".format(sn_all, fn_1st[:1], sep_special, fn_others_abbr), _value, _type) # Bach, J. G. B.
+				else:
+					add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>", key_inflection), _value, _type) # Adolf Born -> A. Born
+					add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> P. P. Rubens
+					add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1> \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> Peter P. Rubens
+					add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>. \g<3>. \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> J. G. B. Bach
+					add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<1>. \g<2>. \g<3> \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> J. G. Bernhard Bach
+					add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1> \g<2>. \g<3>. \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> Johann G. B. Bach
+					add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<1> \g<2>. \g<3> \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> Johann G. Bernhard Bach
+					add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1> \g<2> \g<3>. \g<4>", key_inflection), _value, _type) # Johann Gottfried Bernhard Bach -> Johann Gottfried B. Bach
+					if not regex.search("[IVX]\.", key_inflection): # do not consider "Karel IV." or "Albert II. Monacký", ...
+						add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<2>, \g<1>", key_inflection), _value, _type) # Adolf Born -> Born, Adolf
+						add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<2>, \g<1>.", key_inflection), _value, _type) # Adolf Born -> Born, A.
+						add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<3>, \g<1> \g<2>", key_inflection), _value, _type) # Johann Joachim Quantz -> Quantz, Johann Joachim
+						add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<3>, \g<1>. \g<2>.", key_inflection), _value, _type) # Johann Joachim Quantz -> Quantz, J. J.
+						add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<2> \g<3>, \g<1>", key_inflection), _value, _type) # Tomáš Garrigue Masaryk -> Garrigue Masaryk, Tomáš
+						add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<2> \g<3>, \g<1>.", key_inflection), _value, _type) # Tomáš Garrigue Masaryk -> Garrigue Masaryk, T.
 			if "Mc" in key_inflection:
 				add(regex.sub(r"Mc(\p{Lu})", "Mc \g<1>", key_inflection), _value, _type) # McCollum -> Mc Collum
 				add(regex.sub(r"Mc (\p{Lu})", "Mc\g<1>", key_inflection), _value, _type) # Mc Collum -> McCollum
 			if "." in key_inflection:
-				new_key_inflection = regex.sub(r"(\p{Lu})\. (?=\p{Lu})", "\g<1>.", key_inflection) # J. M. W. Turner -> J.M.W.Turner
+				new_key_inflection = regex.sub(r"(\p{Lu}\.%s?) (?=\p{Lu})" %re_flag_names, "\g<1>", key_inflection) # J. M. W. Turner -> J.M.W.Turner
 				add(new_key_inflection, _value, _type)
-				new_key_inflection = regex.sub(r"(\p{Lu})\.(?=\p{Lu}\p{L}+)", "\g<1>. ", new_key_inflection) # J.M.W.Turner -> J.M.W. Turner
+				new_key_inflection = regex.sub(r"(\p{Lu}\.%s?)(?=\p{Lu}\p{L}+)" %re_flag_names, "\g<1> ", new_key_inflection) # J.M.W.Turner -> J.M.W. Turner
 				add(new_key_inflection, _value, _type)
 				add(regex.sub(r"\.", "", new_key_inflection), _value, _type) # J.M.W. Turner -> JMW Turner
 			if "-" in key_inflection:
@@ -346,6 +392,8 @@ def add(_key, _value, _type):
 	 _value : the line number (from the KB) corresponding to a given entity
 	 _type : the type prefix for a given entity
 	"""
+
+	_key = regex.sub(r"#[A-Za-z0-9]E?(?= |,|\.|-|$)", "", _key)
 
 	_key = _key.strip()
 
@@ -572,7 +620,7 @@ if __name__ == "__main__":
 			czechnames_file = args.czechnames
 		else:
 			czechnames_file = 'czechnames_' + kb_version + '.out'
-		alternatives = process_czechnames(czechnames_file)
+		alternatives = process_czechnames(czechnames_file, False)
 
 		# processing the KB
 		line_num = 1
