@@ -246,6 +246,9 @@ def add_to_dictionary(_key, _nametype, _value, _type, _fields, alt_names):
 		key_inflections = set([_key]) # TODO alternative names are not in subnames
 		if _type in ["person", "person:artist", "person:fictional"] and _nametype != "nick":
 			g_subnames |= Persons.get_normalized_subnames(set([_key]), True)
+	for tmp in key_inflections.copy():
+		if regex.search(r"\-\p{Lu}", tmp):
+			key_inflections.add(regex.sub(r"\-(\p{Lu})", " \g<1>", tmp)) # Payne-John Christo -> Payne John Christo
 
 	# All following transformatios will be performed for each of inflection variant of key_inflection
 	for key_inflection in key_inflections:
@@ -299,7 +302,6 @@ def add_to_dictionary(_key, _nametype, _value, _type, _fields, alt_names):
 				add(new_key_inflection, _value, _type)
 				add(regex.sub(r"\.", "", new_key_inflection), _value, _type) # J.M.W. Turner -> JMW Turner
 			if "-" in key_inflection:
-				add(regex.sub(r"\-(\p{Lu})", " \g<1>", key_inflection), _value, _type) # Payne-John Christo -> Payne John Christo
 				add('-'.join(word[0].upper() + word[1:] if len(word) > 1 else word for word in key_inflection.split("-")), _value, _type) # Mao Ce-tung -> Mao Ce-Tung
 			if "ì" in key_inflection:
 				add(regex.sub("ì", "í", key_inflection), _value, _type) # Melozzo da Forlì -> Melozzo da Forlí
