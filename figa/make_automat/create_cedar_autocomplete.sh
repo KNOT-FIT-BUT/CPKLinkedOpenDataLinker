@@ -115,7 +115,7 @@ export PYTHONPATH=../../:$PYTHONPATH
 #======================================================================
 # vytvorenie zoznamu klucov entit v KB a vyhodenie fragmentov zo zoznamu
 python3 KB2namelist.py -a < "$KB" | tr -s ' ' | grep -v -e "[^;]N" > intext_auto
-cat intext_auto | grep -P "^person:(fictional:)?" | sed -r 's/^person:(fictional:)?\t//' > p_intext
+cat intext_auto | grep -P "^person:((?:fictional|group):)?" | sed -r 's/^person:((fictional|group):)?\t//' > p_intext
 cat intext_auto | grep "^person:artist:" | sed 's/^person:artist:\t//' > a_intext
 cat intext_auto | grep -P "^(location|country|country:former|settlement|watercourse|waterarea):" | sed -r 's/^(location|country|country:former|settlement|watercourse|waterarea):\t//' > l_intext
 cat intext_auto | grep "^artwork:" | sed 's/^artwork:\t//' > w_intext
