@@ -39,10 +39,10 @@ makeAutomata() {
 
     if $LOWERCASE
     then
-        ../figav1.0 -d namelist -n -w ../automata-lower"$EXT"
+        ../figav1.0 -d namelist_lower -n -w ../automata-lower"$EXT"
     elif $URI
     then
-        ../figav1.0 -d namelist -n -w ../automata-uri"$EXT"
+        ../figav1.0 -d namelist_uri -n -w ../automata-uri"$EXT"
     else
         ../figav1.0 -d namelist -n -w ../automata"$EXT"
     fi
