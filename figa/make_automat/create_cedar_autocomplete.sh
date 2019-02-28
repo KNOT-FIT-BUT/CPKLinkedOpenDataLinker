@@ -169,7 +169,7 @@ fi
 
 #=====================================================================
 # smazani mezivysledku
-rm -f intext_auto *_intext
-rm -f *_namelist
-rm -f KB_confidence
+#rm -f intext_auto *_intext
+#rm -f *_namelist
+#rm -f KB_confidence
 
