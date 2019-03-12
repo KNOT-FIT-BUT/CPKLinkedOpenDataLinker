@@ -58,15 +58,15 @@ if $LOG; then
 fi
 
 mkdir -p ./figa/make_automat/morph/
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/kb/new/VERSION -O VERSION
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/kb/new/KBstatsMetrics.all -O KBstatsMetrics.all
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/kb/new/HEAD-KB -O HEAD-KB
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/morph/czech.lpn -O ./figa/make_automat/morph/czech.lpn
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/morph/czech_vc_prijmeni_navic.lpn -O ./figa/make_automat/morph/czech_vc_prijmeni_navic.lpn
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/morph/prijmeni_navic.lpn -O ./figa/make_automat/morph/prijmeni_navic.lpn
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/morph/czech.paradigms -O ./figa/make_automat/morph/czech.paradigms
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/morph/lntrf2lpn.py -O ./figa/make_automat/morph/lntrf2lpn.py
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/morph/tag_rule_sort_key.py -O ./figa/make_automat/morph/tag_rule_sort_key.py
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/kb/new/VERSION -O VERSION
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/kb/new/KBstatsMetrics.all -O KBstatsMetrics.all
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/kb/new/HEAD-KB -O HEAD-KB
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/czech.lpn -O ./figa/make_automat/morph/czech.lpn
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/czech_vc_prijmeni_navic.lpn -O ./figa/make_automat/morph/czech_vc_prijmeni_navic.lpn
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/prijmeni_navic.lpn -O ./figa/make_automat/morph/prijmeni_navic.lpn
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/czech.paradigms -O ./figa/make_automat/morph/czech.paradigms
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/lntrf2lpn.py -O ./figa/make_automat/morph/lntrf2lpn.py
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/tag_rule_sort_key.py -O ./figa/make_automat/morph/tag_rule_sort_key.py
 
 if ! $ONLY_DICT; then
 	#=====================================================================
