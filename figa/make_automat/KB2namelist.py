@@ -319,9 +319,14 @@ def add_to_dictionary(_key, _nametype, _value, _type, _fields, alt_names):
 							# For all of following format exaplaining comments of additions let us assume, that Johann Gottfried Bernhard is firstnames and a surname is Bach only.
 							add("{} {}{}{}".format(fn_1st, fn_others_abbr, sep_special, sn_all), _value, _type)       # Johann G. B. Bach
 							add("{}. {}{}{}".format(fn_1st[:1], fn_others_abbr, sep_special, sn_all), _value, _type)  # J. G. B. Bach
+							add("{} {}".format(fn_1st, sn_all), _value, _type)                                        # Johann Bach
+							add("{}. {}".format(fn_1st[:1], sn_all), _value, _type)                                   # J. Bach
 							add("{}, {}{}{}".format(sn_all, fn_1st, sep_special, fn_others_full), _value, _type)      # Bach, Johann Gottfried Bernhard
 							add("{}, {}{}{}".format(sn_all, fn_1st, sep_special, fn_others_abbr), _value, _type) # Bach, Johann G. B.
 							add("{}, {}.{}{}".format(sn_all, fn_1st[:1], sep_special, fn_others_abbr), _value, _type) # Bach, J. G. B.
+							add("{}, {}".format(sn_all, fn_1st), _value, _type)                                       # Bach, Johann
+							add("{}, {}.".format(sn_all, fn_1st[:1]), _value, _type)                                  # Bach, J.
+
 				else:
 					add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>", key_inflection), _value, _type) # Adolf Born -> A. Born
 					add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>. \g<3>", key_inflection), _value, _type) # Peter Paul Rubens -> P. P. Rubens
