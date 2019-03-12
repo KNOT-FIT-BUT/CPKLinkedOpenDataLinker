@@ -285,7 +285,7 @@ def add_to_dictionary(_key, _nametype, _value, _type, _fields, alt_names):
 			if _nametype != "nick":
 				if regex.search(r"#", key_inflection):
 					# TODO: what about abbreviation of Mao ce-Tung?
-					#							 ( <firstname>  ) ( <other firstnames>         )( <unknowns>   )( <surnames>       )
+					#                             ( <firstname>             ) ( <other firstnames>                                 )( <unknowns>               )( <surnames>                   )
 					name_parts = regex.search(r"^((?:\p{Lu}')?\p{Lu}\p{L}+%s) ((?:(?:(?:\p{Lu}')?\p{L}+#I )*(?:\p{Lu}')?\p{L}+%s )*)((?:(?:\p{Lu}')?\p{L}+#I )*)((?:\p{Lu}')?\p{Lu}\p{L}+(%s).*)$" % (re_flag_only1st_firstname, re_flag_firstname, re_flag_sure_surname), key_inflection)
 					if name_parts:
 						fn_1st = name_parts.group(1)
