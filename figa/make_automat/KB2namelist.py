@@ -432,66 +432,25 @@ def add_line_of_type_to_dictionary(_fields, _line_num, alt_names, _type):
 			add_to_dictionary(ta, ntype, _line_num, _type, _fields, alt_names)
 
 
-def process_person(_fields, _line_num, alt_names):
-	""" Processes a line with entity of person type. """
+def process_person_common(person_type, _fields, _line_num, alt_names, confidence_threshold):
+	""" Processes a line with entity of any subtype of person type. """
 
 	aliases = get_KB_names_ntypes_for(_fields)
 	name = kb_struct.get_data_for(_fields, 'NAME')
 	confidence = float(kb_struct.get_data_for(_fields, 'CONFIDENCE'))
 
-	CONFIDENCE_THRESHOLD = 20
-
 	for n, t in aliases.items():
 		length = n.count(" ") + 1
 		if length >= 2 or confidence >= CONFIDENCE_THRESHOLD:
-			add_to_dictionary(n, t, _line_num, "person", _fields, alt_names)
+			add_to_dictionary(n, t, _line_num, person_type, _fields, alt_names)
 
-#	if confidence >= CONFIDENCE_THRESHOLD:
-#		surname_match = SURNAME_MATCH.search(name)
-#		unwanted_match = UNWANTED_MATCH.search(name)
-#		if surname_match and not unwanted_match:
-#			surname = surname_match.group(0)
-#			add_to_dictionary(surname, _line_num, "person", _fields, alt_names)
+		if confidence >= CONFIDENCE_THRESHOLD:
+			surname_match = SURNAME_MATCH.search(name)
+			unwanted_match = UNWANTED_MATCH.search(name)
+			if surname_match and not unwanted_match:
+				surname = surname_match.group(0)
+				add_to_dictionary(surname, _line_num, person_type, _fields, alt_names)
 
-
-def process_artist(_fields, _line_num, alt_names):
-	""" Processes a line with entity of artist type. """
-
-	aliases = get_KB_names_ntypes_for(_fields)
-
-	name = kb_struct.get_data_for(_fields, 'NAME')
-	confidence = float(kb_struct.get_data_for(_fields, 'CONFIDENCE'))
-	surname = ""
-
-	CONFIDENCE_THRESHOLD = 15
-
-	for n, t in aliases.items():
-		length = n.count(" ") + 1
-		if length >= 2 or confidence >= CONFIDENCE_THRESHOLD:
-			add_to_dictionary(n, t, _line_num, "person:artist", _fields, alt_names)
-
-def process_fictional(_fields, _line_num, alt_names):
-	""" Processes a line with entity of person:fictional type. """
-
-	aliases = get_KB_names_ntypes_for(_fields)
-
-	name = kb_struct.get_data_for(_fields, 'NAME')
-	confidence = float(kb_struct.get_data_for(_fields, 'CONFIDENCE'))
-	surname = ""
-
-	CONFIDENCE_THRESHOLD = 15
-
-	for n, t in aliases.items():
-		length = n.count(" ") + 1
-		if length >= 2 or confidence >= CONFIDENCE_THRESHOLD:
-			add_to_dictionary(n, t, _line_num, "person:fictional", _fields, alt_names)
-
-#	if confidence >= CONFIDENCE_THRESHOLD:
-#		surname_match = SURNAME_MATCH.search(name)
-#		unwanted_match = UNWANTED_MATCH.search(name)
-#		if surname_match and not unwanted_match:
-#			surname = surname_match.group(0)
-#			add_to_dictionary(surname, _line_num, "person:artist", _fields, alt_names)
 
 def process_other(_fields, _line_num, alt_names):
 	""" Processes a line with entity of other type. """
@@ -629,11 +588,11 @@ if __name__ == "__main__":
 			ent_type = kb_struct.get_ent_type(fields)
 
 			if ent_type == "person:fictional":
-				process_fictional(fields, str(line_num), alternatives)
+				process_person_common(ent_type, fields, str(line_num), alternatives, 15)
 			elif ent_type == "person:artist":
-				process_artist(fields, str(line_num), alternatives)
+				process_person_common(ent_type, fields, str(line_num), alternatives, 15)
 			elif ent_type == "person":
-				process_person(fields, str(line_num), alternatives)
+				process_person_common(ent_type, fields, str(line_num), alternatives, 20)
 			else:
 				process_other(fields, str(line_num), alternatives)
 			'''
