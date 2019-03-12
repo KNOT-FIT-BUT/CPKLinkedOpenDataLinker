@@ -67,6 +67,7 @@ wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/prijmeni_navic.lp
 wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/czech.paradigms -O ./figa/make_automat/morph/czech.paradigms
 wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/lntrf2lpn.py -O ./figa/make_automat/morph/lntrf2lpn.py
 wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/tag_rule_sort_key.py -O ./figa/make_automat/morph/tag_rule_sort_key.py
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/cs_media.wc -O cs_media.wc
 
 if ! $ONLY_DICT; then
 	#=====================================================================
