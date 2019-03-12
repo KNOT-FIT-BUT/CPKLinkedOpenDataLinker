@@ -457,73 +457,6 @@ def process_other(_fields, _line_num, alt_names):
 
 	add_line_of_type_to_dictionary(_fields, _line_num, alt_names, _fields[1])
 
-def process_location(_fields, _line_num):
-	""" Processes a line with entity of location type. """
-
-	add_line_of_type_to_dictionary(_fields, _line_num, alt_names, "location")
-
-def process_artwork(_fields, _line_num):
-	""" Processes a line with entity of artwork type. """
-
-	add_line_of_type_to_dictionary(_fields, _line_num, alt_names, "artwork")
-
-def process_museum(_fields, _line_num):
-	""" Processes a line with entity of museum type. """
-
-	add_line_of_type_to_dictionary(_fields, _line_num, alt_names, "museum")
-
-def process_fieldsvent(_fields, _line_num):
-	""" Processes a line with entity of event type. """
-
-	add_line_of_type_to_dictionary(_fields, _line_num, alt_names, "event")
-
-def process_visual_art_form(_fields, _line_num):
-	""" Processes a line with entity of visual_art_form type. """
-
-	add_line_of_type_to_dictionary(_fields, _line_num, alt_names, "visual_art_form")
-
-def process_visual_art_medium(_fields, _line_num):
-	""" Processes a line with entity of visual_art_medium type. """
-
-	add_line_of_type_to_dictionary(_fields, _line_num, alt_names, "visual_art_medium")
-
-def process_visual_art_genre(_fields, _line_num):
-	""" Processes a line with entity of visual_art_genre type. """
-
-	add_line_of_type_to_dictionary(_fields, _line_num, alt_names, "visual_art_genre")
-
-def process_art_period_movement(_fields, _line_num):
-	""" Processes a line with entity of art_period_movement type. """
-
-	add_line_of_type_to_dictionary(_fields, _line_num, alt_names, "art_period_movement")
-
-def process_nationality(_fields, _line_num):
-	""" Processes a line with entity of nationalities type. """
-
-	aliases = kb_struct.get_data_for(_fields, 'ADJECTIVAL FORM').split(KB_MULTIVALUE_DELIM)
-	for t in aliases:
-		add_to_dictionary(t, _line_num, "nationality", _fields)
-
-def process_mythology(_fields, _line_num):
-	""" Processes a line with entity of mythology type. """
-
-	aliases = get_KB_aliases_for(_fields)
-	aliases.append(kb_struct.get_data_for(_fields, 'NAME'))
-	for t in aliases:
-		length = t.count(" ") + 1
-		if length >= 2 or t == kb_struct.get_data_for(_fields, 'NAME'):
-			add_to_dictionary(t, _line_num, "mythology", _fields)
-
-def process_family(_fields, _line_num):
-	""" Processes a line with entity of family type. """
-
-	add_line_of_type_to_dictionary(_fields, _line_num, alt_names, "family")
-
-def process_group(_fields, _line_num):
-	""" Processes a line with entity of group type. """
-
-	add_line_of_type_to_dictionary(_fields, _line_num, alt_names, "group")
-
 
 def process_uri(_fields, _line_num):
 	""" Processes all URIs for a given entry. """
@@ -595,32 +528,6 @@ if __name__ == "__main__":
 				process_person_common(ent_type, fields, str(line_num), alternatives, 20)
 			else:
 				process_other(fields, str(line_num), alternatives)
-			'''
-			elif ent_type == "location":
-				process_location(fields, str(line_num))
-			elif ent_type == "artwork":
-				process_artwork(fields, str(line_num))
-			elif ent_type == "event":
-				process_fieldsvent(fields, str(line_num))
-			elif ent_type == "visual_art_form":
-				process_visual_art_form(fields, str(line_num))
-			elif ent_type == "visual_art_genre":
-				process_visual_art_genre(fields, str(line_num))
-			elif ent_type == "art_period_movement":
-				process_art_period_movement(fields, str(line_num))
-			elif ent_type == "visual_art_medium":
-				process_visual_art_medium(fields, str(line_num))
-			elif ent_type == "nationality":
-				process_nationality(fields, str(line_num))
-			elif ent_type == "museum":
-				process_museum(fields, str(line_num))
-			elif ent_type == "mythology":
-				process_mythology(fields, str(line_num))
-			elif ent_type == "family":
-				process_family(fields, str(line_num))
-			elif ent_type == "group":
-				process_group(fields, str(line_num))
-			'''
 			line_num += 1
 
 		# Subnames in all inflections with 'N'
