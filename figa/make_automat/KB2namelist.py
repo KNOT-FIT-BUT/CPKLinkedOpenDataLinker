@@ -65,13 +65,15 @@ kb_struct = metrics_knowledge_base.KnowledgeBase()
 # multiple values delimiter
 KB_MULTIVALUE_DELIM = metrics_knowledge_base.KB_MULTIVALUE_DELIM
 
-#SURNAME_MATCH = regex.compile(r"(((?<=^)|(?<=[ ]))(da |von )?((\p{Lu}\p{Ll}*-)?(\p{Lu}\p{Ll}+))$)")
-#UNWANTED_MATCH = regex.compile(r"(Princ|Svatý|,|z|[0-9])")
+SURNAME_MATCH = regex.compile(r"(((?<=^)|(?<=[ ]))(?:(?:da|von)(?:#[^ ]+)? )?((?:\p{Lu}\p{Ll}*(?:#[^- ]+)?-)?(?:\p{Lu}\p{Ll}+(?:#[^- ]+)?))$)")
+UNWANTED_MATCH = regex.compile(r"(Princ|Svatý|,|z|[0-9])")
 
 re_flag_names = r"(?:#[A-Z0-9]E?)"
 re_flag_only1st_firstname = r"(?:#[GI]E?)"
 re_flag_firstname = r"(?:#[G]E?)"
 re_flag_sure_surname = r"(?:#[^GI]E?)"
+
+word_freq = dict()
 
 
 ''' For firstnames or surnames it creates subnames of each separate name and also all names together '''
@@ -446,10 +448,10 @@ def process_person_common(person_type, _fields, _line_num, alt_names, confidence
 
 	for n, t in aliases.items():
 		length = n.count(" ") + 1
-		if length >= 2 or confidence >= CONFIDENCE_THRESHOLD:
+		if length >= 2 or (n in word_freq and word_freq[n] > 0.5) or ((n[:1].lower() + n[1:]) not in word_freq):
 			add_to_dictionary(n, t, _line_num, person_type, _fields, alt_names)
 
-		if confidence >= CONFIDENCE_THRESHOLD:
+		if confidence >= confidence_threshold:
 			surname_match = SURNAME_MATCH.search(name)
 			unwanted_match = UNWANTED_MATCH.search(name)
 			if surname_match and not unwanted_match:
@@ -512,6 +514,22 @@ if __name__ == "__main__":
 		# load version number (string) of KB
 		with open("../../VERSION") as kb_version_file:
 			kb_version = kb_version_file.read().strip()
+
+		# load frequency for words
+		with open("../../cs_media.wc") as frequency_file:
+			dbg_f = open("freq.log", "w")
+			word_freq_total = dict()
+			for l in frequency_file:
+				word, freq = l.rstrip().split("\t") # must be rstrip() only due to space as a key in input file
+				word_freq[word] = int(freq)
+				k_freq_total = word.lower()
+				if k_freq_total not in word_freq_total:
+					word_freq_total[k_freq_total] = 0
+				word_freq_total[k_freq_total] += int(freq)
+			for k in word_freq:
+				word_freq[k] = word_freq[k] / word_freq_total[k.lower()]
+				dbg_f.write(k + "\t" + str(word_freq[k]) + "\n")
+			dbg_f.close()
 
 		if args.czechnames:
 			czechnames_file = args.czechnames
