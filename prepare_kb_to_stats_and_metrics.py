@@ -17,23 +17,33 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import sys
 import metrics_knowledge_base
 import argparse
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(
+	description = "Add empty columns for stats and matrics to the knowledge base reading from standard input."
+)
 parser.add_argument(
 	'-H', '--head-kb',
 	help='Header for the knowledge base, which specify its types and their atributes (default: %(default)s).',
 	default=metrics_knowledge_base.PATH_HEAD_KB
 )
-parser.add_argument(
-	'-k', '--knowledge-base',
-	help='File containing the knowledge base',
-	required=True
-)
 
 arguments = parser.parse_args()
 
-kb = metrics_knowledge_base.KnowledgeBase(path_to_headkb=arguments.head_kb, path_to_kb=arguments.knowledge_base)
-kb.insert_metrics()
-print kb
+kb_struct = metrics_knowledge_base.KnowledgeBase(path_to_headkb=arguments.head_kb)
+
+for line in sys.stdin:
+	columns = line.rstrip("\n").split("\t")
+	
+	ent_head = kb_struct.get_ent_head(columns)
+	stats_and_matrics = "\t".join(ent_head).find("WIKI BACKLINKS\tWIKI HITS\tWIKI PRIMARY SENSE\tSCORE WIKI\tSCORE METRICS\tCONFIDENCE") >= 0
+	if stats_and_matrics and len(columns)+6 == len(ent_head):
+		index = kb_struct.get_col_for(columns, "WIKI BACKLINKS")
+		columns.insert(index, "\t"*5)
+		sys.stdout.write("\t".join(columns) + '\n')
+	else:
+		sys.stdout.write(line)
+
+# EOF

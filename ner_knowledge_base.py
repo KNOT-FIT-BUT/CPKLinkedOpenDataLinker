@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# vim: set tabstop=4 softtabstop=4 noexpandtab shiftwidth=4
 
 import os, sys
 import re
 import imp
 import cPickle as pickle
-import threading
 import subprocess
 import unicodedata
 import tempfile
 import time
 
 # Pro debugování:
-from debug import print_dbg, print_dbg_en, cur_inspect
+from debug import print_dbg, print_dbg_en
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DIRPATH_KB_DAEMON = os.path.abspath(os.path.join(SCRIPT_DIR, "SharedKB/var2"))
@@ -35,16 +35,25 @@ def remove_accent(_string):
     return str("".join([c for c in nkfd_form if not unicodedata.combining(c)]))
 
 class KnowledgeBaseCZ(object):
-
+	'''
+	Třída zapouzdřující KB.
+	'''
 
 	def __init__(self, kb_shm_name=None):
+		'''
+		Inicializace.
+		'''
 
 		KB_shm = imp.load_source('KB_shm', os.path.join(DIRPATH_KB_DAEMON,"KB_shm.py"))
 		self.kb_shm_name = kb_shm_name
-		self.kb_shm = KB_shm.KB_shm(self.kb_shm_name)
+		self.kb_shm = KB_shm.KB_shm(self.kb_shm_name, KB_MULTIVALUE_DELIM)
 		self.kb_daemon = None
 
 	def start(self):
+		'''
+		Připojí sdílenou paměť.
+		'''
+
 		kb_daemon_run = self.check()
 
 		try:
@@ -98,11 +107,11 @@ class KnowledgeBaseCZ(object):
 		PATH_NAMEDICT = os.path.join(SCRIPT_DIR, "ner_namedict.pkl")
 		PATH_FRAGMENTS = os.path.join(SCRIPT_DIR, "ner_fragments.pkl")
 
-		#person_alias = self.get_head_col("person", "ALIAS")
-		person_name = self.get_head_col("person", "JMENO")
-		#artist_other = self.get_head_col("artist", "OTHER TERM")
-		#artist_preferred = self.get_head_col("artist", "PREFERRED TERM")
-		#artist_display = self.get_head_col("artist", "DISPLAY TERM")
+		#person_alias = self.get_head_col("person", "", "ALIASES")
+		person_name = self.get_head_col("person", "", "NAME")
+		#artist_other = self.get_head_col("artist", "", "OTHER TERM")
+		#artist_preferred = self.get_head_col("artist", "", "PREFERRED TERM")
+		#artist_display = self.get_head_col("artist", "", "DISPLAY TERM")
 
 		self.name_dict = {}
 		self.fragments = set()
@@ -110,8 +119,8 @@ class KnowledgeBaseCZ(object):
 		# Proto aby se nemusela znova procházet KB, vytvoří se soubor PATH_NAMEDICT.
 		# Namedict se bude načítat z něj pokud PATH_KB bude starší než PATH_NAMEDICT - tím dojde k urychlení.
 		if os.access(PATH_NAMEDICT, os.F_OK) and os.stat(PATH_KB).st_mtime < os.stat(PATH_NAMEDICT).st_mtime and \
-		   os.access(PATH_FRAGMENTS, os.F_OK) and os.stat(PATH_NAMEDICT).st_mtime <= os.stat(PATH_FRAGMENTS).st_mtime and \
-                   os.path.getsize(PATH_NAMEDICT) > 0 and os.path.getsize(PATH_FRAGMENTS) > 0:
+		os.access(PATH_FRAGMENTS, os.F_OK) and os.stat(PATH_NAMEDICT).st_mtime <= os.stat(PATH_FRAGMENTS).st_mtime and \
+		os.path.getsize(PATH_NAMEDICT) > 0 and os.path.getsize(PATH_FRAGMENTS) > 0:
 			file_namedict = open(PATH_NAMEDICT, 'rb')
 			file_fragments = open(PATH_FRAGMENTS, 'rb')
 
@@ -167,7 +176,7 @@ class KnowledgeBaseCZ(object):
 		forbidden = ["Pán", "Pani", "Svatý"]
 		#roles = ["Baron", "Prince", "Duke", "Earl", "King", "Pope", "Queen", "Artist", "Painter"]
 		regex_place = re.compile(r" (z|ze) .*")
-		regex_role = re.compile(r"[Tt]he [a-zA-Z]+")
+		#regex_role = re.compile(r"[Tt]he [a-zA-Z]+")
 		regex_van = re.compile(r"[Vv]an [a-zA-Z]+")
 		regex_name = re.compile(r"[A-Z][a-z-']+[a-zA-Z]*[a-z]+") # this should match only a nice name
 		names = set()
@@ -179,12 +188,12 @@ class KnowledgeBaseCZ(object):
 		#	preferred_role = self.get_data_for(line, "PREFERRED ROLE")
 		#	if preferred_role and " " not in preferred_role:
 		#		roles.add(preferred_role)
-		#	other_roles = self.get_data_for(line, "OTHER ROLE").split("|")
+		#	other_roles = self.get_data_for(line, "OTHER ROLE").split(KB_MULTIVALUE_DELIM)
 		#	for other_role in other_roles:
 		#		if other_role and " " not in other_role:
 		#			roles.add(other_role)
 #		if ent_type == "person":
-#			professions = self.get_data_for(line, "POVOLANI").split("|")
+#			professions = self.get_data_for(line, "JOBS").split(KB_MULTIVALUE_DELIM)
 #			for profession in professions:
 #				if profession:
 #					roles.add(profession)
@@ -277,19 +286,19 @@ class KnowledgeBaseCZ(object):
 
 		return self.kb_shm.headAt(line, col)
 
-	def get_head_for(self, ent_type, col):
+	def get_head_for(self, ent_type, ent_subtype, col):
 		'''
 		Číslování sloupců od 1.
 		'''
 
-		return self.kb_shm.headFor(ent_type, col)
+		return self.kb_shm.headFor(ent_type, ent_subtype, col)
 
-	def get_head_col(self, ent_type, col_name):
+	def get_head_col(self, ent_type, ent_subtype, col_name):
 		'''
-		Vrátí číslo sloupce pro požadovaný ent_type a jméno sloupce.
+		Vrátí číslo sloupce pro požadovaný ent_type, ent_subtype a jméno sloupce.
 		'''
 
-		return self.kb_shm.headCol(ent_type, col_name)
+		return self.kb_shm.headCol(ent_type, ent_subtype, col_name)
 
 	def get_complete_data(self, line, delim='\t'):
 		'''
@@ -314,7 +323,7 @@ class KnowledgeBaseCZ(object):
 
 		return (col-1, text_line)
 
-	def get_complete_head(self, ent_type, delim='\t'):
+	def get_complete_head(self, ent_type, ent_subtype, delim='\t'):
 		'''
 		Vrátí tuple (počet sloupců, celý řádek), kde v jednom řetězci je celý řádek pro požadovaný line, tak jak je v KB.
 		Parametr delim umožňuje změnit oddělovač sloupců.
@@ -322,18 +331,18 @@ class KnowledgeBaseCZ(object):
 
 		text_line = ""
 		col = 1
-		text = self.get_head_for(ent_type, col)
+		text = self.get_head_for(ent_type, ent_subtype, col)
 
 		if text != None:
 			text_line += text
 			col += 1
-			text = self.get_head_for(ent_type, col)
+			text = self.get_head_for(ent_type, ent_subtype, col)
 
 		while text != None:
 			text_line += delim
 			text_line += text
 			col += 1
-			text = self.get_head_for(ent_type, col)
+			text = self.get_head_for(ent_type, ent_subtype, col)
 
 		return (col-1, text_line)
 
@@ -346,20 +355,21 @@ class KnowledgeBaseCZ(object):
 		text_line = ""
 		col = 1
 		ent_type = self.get_ent_type(line)
-		text_head = self.get_head_for(ent_type, col)
+		ent_subtype = self.get_ent_subtype(line)
+		text_head = self.get_head_for(ent_type, ent_subtype, col)
 		text_data = self.get_data_at(line, col)
 
 		if (text_head != None) and (text_data != None):
 			text_line += text_head + ": " + text_data
 			col += 1
-			text_head = self.get_head_for(ent_type, col)
+			text_head = self.get_head_for(ent_type, ent_subtype, col)
 			text_data = self.get_data_at(line, col)
 
 		while (text_head != None) and (text_data != None):
 			text_line += "\n"
 			text_line += text_head + ": " + text_data
 			col += 1
-			text_head = self.get_head_for(ent_type, col)
+			text_head = self.get_head_for(ent_type, ent_subtype, col)
 			text_data = self.get_data_at(line, col)
 
 		return (col - 1, text_line)
@@ -368,6 +378,10 @@ class KnowledgeBaseCZ(object):
 		"""Returns a type of an entity at the line of the knowledge base"""
 
 		return self.kb_shm.dataType(line)
+
+	def get_ent_subtype(self, line):
+		"""Returns a subtype of an entity at the line of the knowledge base"""
+		return self.kb_shm.dataSubtype(line)
 
 	def people_named(self, subname):
 		"""
@@ -405,14 +419,13 @@ class KnowledgeBaseCZ(object):
 	def get_dates(self, line):
 		ent_type = self.get_ent_type(line)
 		if ent_type in ["person", "artist"]:
-			dates = set([self.get_data_for(line, "DATUM_NAROZENI"), self.get_data_for(line, "DATUM_UMRTI")])
+			dates = set([self.get_data_for(line, "DATE OF BIRTH"), self.get_data_for(line, "DATE OF DEATH")])
 			dates.discard("")
 			return dates
 		return set()
 
 	def get_nationalities(self, line):
-
-		return self.get_data_for(line, "NARODNOST").split(KB_MULTIVALUE_DELIM)
+		return self.get_data_for(line, "NATIONALITY").split(KB_MULTIVALUE_DELIM)
 
 
 class KbDaemon(object):
@@ -491,3 +504,7 @@ class KbDaemon(object):
 		self.stderr.close()
 		self.ps = None
 		self.exitcode = ps_exitcode
+
+
+#autogenerated part by init_ner_cz.sh script
+globals()['KnowledgeBase'] = KnowledgeBaseCZ

@@ -48,6 +48,8 @@ limitations under the License.
 // Struktura sdílené paměti
 #include "KB_shm.h"
 
+#define VERSION_SIZE 20
+
 /*       _\|/_
          (o o)
  +----oOO-{_}-OOo----+
@@ -202,7 +204,12 @@ int init_shm(KBSharedMem **KB_shm, char *KB_path)
 		CHECK( read_line( &str_buf, infile, &last_letter ) );
 		
 		if (strncmp(VERSION_PREFIX, str_buf.str, VERSION_PREFIX_LEN) == 0) {
-			CHECK( get_num_arg(str_buf.str + VERSION_PREFIX_LEN, &KB_buf.version) );
+			KB_buf.version = malloc(sizeof(char) * (VERSION_SIZE + 1));
+			if (KB_buf.version == NULL) {
+				perror("malloc");
+				return EXIT_FAILURE;
+			}
+			strncpy(KB_buf.version, str_buf.str + VERSION_PREFIX_LEN, VERSION_SIZE);
 			deleteString( &str_buf );
 			CHECK( read_line( &str_buf, infile, &last_letter ) );
 		}

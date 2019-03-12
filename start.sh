@@ -47,27 +47,27 @@ done
 # zmena spousteci cesty na tu, ve ktere se nachazi start.sh
 cd `dirname "${LAUNCHED}"`
 
-mkdir -p ./figa/make_automat/morph/
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/VERSION -O VERSION
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/KB_cs.all -O KB_cs.all
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/HEAD-KB -O HEAD-KB
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/wiki_stats -O wiki_stats
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/morph/czech.lpn -O ./figa/make_automat/morph/czech.lpn
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/morph/czech_vc_prijmeni_navic.lpn -O ./figa/make_automat/morph/czech_vc_prijmeni_navic.lpn
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/morph/prijmeni_navic.lpn -O ./figa/make_automat/morph/prijmeni_navic.lpn
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/morph/czech.paradigms -O ./figa/make_automat/morph/czech.paradigms
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/morph/lntrf2lpn.py -O ./figa/make_automat/morph/lntrf2lpn.py
-wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/CPKSemanticEnrichment/inputs_czner_master/morph/tag_rule_sort_key.py -O ./figa/make_automat/morph/tag_rule_sort_key.py
-
 if $LOG; then
 	rm -f start.sh.fifo.stdout start.sh.fifo.stderr start.sh.fifo.stdmix
 	mkfifo start.sh.fifo.stdout start.sh.fifo.stderr start.sh.fifo.stdmix
-	
+
 	cat start.sh.fifo.stdout | tee start.sh.stdout > start.sh.fifo.stdmix &
 	cat start.sh.fifo.stderr | tee start.sh.stderr > start.sh.fifo.stdmix &
 	cat start.sh.fifo.stdmix > start.sh.stdmix &
 	exec > start.sh.fifo.stdout 2> start.sh.fifo.stderr
 fi
+
+mkdir -p ./figa/make_automat/morph/
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/kb/new/VERSION -O VERSION
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/kb/new/KBstatsMetrics.all -O KBstatsMetrics.all
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/kb/new/HEAD-KB -O HEAD-KB
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/czech.lpn -O ./figa/make_automat/morph/czech.lpn
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/czech_vc_prijmeni_navic.lpn -O ./figa/make_automat/morph/czech_vc_prijmeni_navic.lpn
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/prijmeni_navic.lpn -O ./figa/make_automat/morph/prijmeni_navic.lpn
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/czech.paradigms -O ./figa/make_automat/morph/czech.paradigms
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/lntrf2lpn.py -O ./figa/make_automat/morph/lntrf2lpn.py
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/morph/tag_rule_sort_key.py -O ./figa/make_automat/morph/tag_rule_sort_key.py
+wget -nv http://knot.fit.vutbr.cz/NAKI_CPK/NER_CZ_inputs/cs_media.wc -O cs_media.wc
 
 if ! $ONLY_DICT; then
 	#=====================================================================
@@ -77,7 +77,7 @@ if ! $ONLY_DICT; then
 	# creating KB
 
 	echo "creating KB"
-	./prepare_data.sh
+	./prepare_data.sh || exit
 fi
 
 echo
@@ -93,8 +93,11 @@ echo
 #=====================================================================
 # creating automaton for NER
 
-echo "creating CedarTree for NER"
-./figa/make_automat/create_cedar.sh -c -k KBstatsMetrics.all
+echo "creating CedarTree and DartsTree for NER"
+./figa/make_automat/create_cedar.sh -c -d -k KBstatsMetrics.all
 
-echo "creating autocomplete for NER"
-./figa/make_automat/create_cedar_autocomplete.sh -c -k KBstatsMetrics.all
+echo "creating autocomplete (cedar and darts) for NER"
+./figa/make_automat/create_cedar_autocomplete.sh -c -d -k KBstatsMetrics.all
+
+echo "creating CedarTree and DartsTree for URIs"
+./figa/make_automat/create_cedar.sh -u -c -d -k KBstatsMetrics.all

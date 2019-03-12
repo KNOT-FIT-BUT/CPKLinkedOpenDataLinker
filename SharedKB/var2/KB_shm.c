@@ -296,7 +296,7 @@ int KBSharedMemInit(KBSharedMem *kb)
 	}
 	
 	kb->capacity = 0;
-	kb->version = 0;
+	kb->version = NULL;
 	return EXIT_SUCCESS;
 }
 
@@ -305,7 +305,7 @@ void deleteKBSharedMem(KBSharedMem *kb)
 	deleteKBStringVector(&kb->head);
 	deleteKBStringVector(&kb->data);
 	kb->capacity = 0;
-	kb->version = 0;
+	free(kb->version);
 }
 
 size_t KBSharedMemSizeOf(KBSharedMem *kb)
@@ -365,7 +365,7 @@ int copy_KB_to_shm(KBSharedMem **dest, KBSharedMem *source)
 	KBStringVectorCopyToShm( &(*dest)->data, &source->data, &freespace );
 	
 #ifdef DEBUG
-	printf("version     = %u\n", source->version );
+	printf("version     = %s\n", source->version );
 	printf("sizeOfKbShm = %lu\n", sizeOfKbShm );
 	printf("freespace   = %lu\n", (size_t)OFFSET_GIVE( (*dest), freespace) );
 #endif

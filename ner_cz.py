@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# vim: set tabstop=4 softtabstop=4 expandtab shiftwidth=4
 
 # Author: Matej Magdolen, xmagdo00@stud.fit.vutbr.cz
 # Author: Jan Cerny, xcerny62@stud.fit.vutbr.cz
@@ -13,6 +14,7 @@ import argparse
 import figa.make_automat.natToKB as natToKB
 import figa.sources.marker as figa
 import ner_knowledge_base
+from ner_knowledge_base import KB_MULTIVALUE_DELIM
 import os
 import unicodedata
 import uuid
@@ -20,6 +22,7 @@ import collections
 import dates
 import name_recognizer.data_row as module_data_row
 import name_recognizer.name_recognizer as name_recognizer
+import numpy
 
 # Pro debugování:
 import difflib, linecache, inspect
@@ -31,6 +34,11 @@ console_handler = logging.StreamHandler()
 formatter = logging.Formatter("%(levelname)s: %(name)s: %(context)s:\n'''\n%(message)s\n'''")
 console_handler.setFormatter(formatter)
 module_logger.addHandler(console_handler)
+
+import debug
+debug.DEBUG_EN = False
+from debug import print_dbg_en
+#
 
 reload(sys)
 sys.setdefaultencoding("utf-8")
@@ -50,22 +58,34 @@ VERBS = {" byl ", " byla ", " je "}
 
 MENTIONS_TYPE = {
     'person' : {},
+    'person:fictional' : {},
+    'person:group' : {},
+    'country': {},
+    'country:former' : {},
+    'settlement' : {},
+    'watercourse' : {},
+    'waterarea' : {},
+    'geo' : {},
+    'geo:relief': {},
+    'geo:waterfall': {},
+    'geo:island': {},
+    'geo:peninsula': {},
+    'geo:continent': {},
     'organisation' : {},
-    'geo:geoplace' : {},
-    'geoplace:populatedPlace' : {},
-    'event' : {},
-    'geoplace:protectedArea' : {},
-    'geoplace:conservationArea' : {},
-    'geoplace:mountain' : {},
-    'geoplace:mountain' : {},
-    'geoplace:castle' : {},
-    'geoplace:lake' : {},
-    'geoplace:forest' : {},
-    'geoplace:mountainPass' : {},
-    'geo:mountainRange' : {},
-    'geo:river' : {},
-    'geoplace:observationTower' : {},
-    'geo:waterfall' : {}
+    'event' : {}
+    #'geo:geoplace' : {},
+    #'geoplace:populatedPlace' : {},
+    #'geoplace:protectedArea' : {},
+    #'geoplace:conservationArea' : {},
+    #'geoplace:mountain' : {},
+    #'geoplace:castle' : {},
+    #'geoplace:lake' : {},
+    #'geoplace:forest' : {},
+    #'geoplace:mountainPass' : {},
+    #'geo:mountainRange' : {},
+    #'geo:river' : {},
+    #'geoplace:observationTower' : {},
+    #'geo:waterfall' : {}
 }
 
 display_entity_score = False
@@ -77,18 +97,27 @@ nationalities_forms = natToKB.NatToKB().get_nationalities()
 # same as in ner.py
 def unicodedata_name(c):
     """ Workaround for unicodedata.name(c) in order to deal with ValueError reising for characters without names (all control characters)."""
-    
+
     try:
         return unicodedata.name(c)
     except ValueError:
         return ""
 
 # same as in ner.py
-def remove_accent(_string):
-    """ Removes accents from a string. For example, Eduard Ovčáček -> Eduard Ovcacek. """
-    # BUG: Toto nemůže fungovat je-li isinstance(_string, str), protože odstranením diakritiky se jistě změní délka u typu str!
-    
-    nfkd_form = unicodedata.normalize('NFKD', unicode(_string))
+def remove_accent_str(input_string):
+    """ Removes accent from the string, e.g. "José Francisco" -> "Jose Francisco". """
+    assert isinstance(input_string, basestring)
+
+    nfkd_form = unicodedata.normalize('NFKD', unicode(input_string))
+    return str("".join([c for c in nfkd_form if not unicodedata.combining(c)]))
+
+# same as in ner.py
+def remove_accent_unicode(_string):
+    """ Removes accents from a string. For example, "Eduard Ovčáček" -> "Eduard Ovcacek". """
+    assert isinstance(_string, basestring)
+    _string = unicode(_string)
+
+    nfkd_form = unicodedata.normalize('NFKD', _string)
     result = str("".join([c for c in nfkd_form if not ACCENT_REGEX.search(unicodedata_name(c))]))
     result = result.decode("utf8", "replace")
     if len(_string) == len(result):
@@ -111,7 +140,7 @@ def ncr2unicode(s):
 			return unichr(c)
 		except ValueError:
 			return '&#'+s+';'
-	
+
 	return re.sub(r"&#([xX]?(?:[0-9a-fA-F]+));", replaceEntities, s).encode(sys.getdefaultencoding())
 
 
@@ -154,12 +183,12 @@ class Entity(object):
         input_string_in_unicode - input string in Unicode
         register - entity register
         """
-        assert isinstance(entity_attributes, list)
+        assert isinstance(entity_attributes, FigaOutput)
         assert isinstance(kb, ner_knowledge_base.KnowledgeBaseCZ)
         assert isinstance(input_string, str)
         assert isinstance(input_string_in_unicode, unicode)
         assert isinstance(register, EntityRegister)
-        
+
         self.next_to_same_type = False
         self.display_score = False
         self.poorly_disambiguated = True
@@ -185,16 +214,15 @@ class Entity(object):
         self.register = register
 
         # getting possible senses (sense 0 marks a coreference)
-        self.senses = set([int(s) for s in entity_attributes[0].split(';') if s != '0'])
-        
+        self.senses = set([s for s in entity_attributes.kb_rows if s != 0])
+
         # Ofsety jsou vztaženy k unicode.
-        # start offset is indexed differently from figa
-        self.start_offset = int(entity_attributes[1]) - 1
-        self.end_offset = int(entity_attributes[2])
+        self.start_offset = entity_attributes.start_offset
+        self.end_offset = entity_attributes.end_offset
         self.begin_of_paragraph = None
 
         # the source text of the entity
-        self.source = ncr2unicode(entity_attributes[3])
+        self.source = ncr2unicode(entity_attributes.fragment)
 
         if len(self.senses) == 0:
             global nationalities_forms
@@ -202,7 +230,7 @@ class Entity(object):
                 self.is_nationality = True
 
         # possible coreferences - people whose names are supersets of an entity
-        self.partial_match_senses = self.kb.people_named(remove_accent(self.source).lower())
+        self.partial_match_senses = self.kb.people_named(remove_accent_unicode(self.source).lower())
 
     @classmethod
     def from_data_row(cls, kb, dr, input_string, input_string_in_unicode, register):
@@ -211,14 +239,14 @@ class Entity(object):
         assert isinstance(input_string, str)
         assert isinstance(input_string_in_unicode, unicode)
         assert isinstance(register, EntityRegister)
-        
+
         entity = cls(str(dr).split('\t'), kb, input_string, input_string_in_unicode, register)
         entity.is_name = True
         return entity
 
     def set_preferred_sense(self, _sense):
         assert isinstance(_sense, (int, Entity)) or _sense == None
-        
+
         self.preferred_sense = _sense
 
         if not isinstance(_sense, Entity):
@@ -256,10 +284,10 @@ class Entity(object):
         sentence = self.right_sentence()
         verb_index = -1
         for verb in VERBS:
-            verb_index = sentence.find(verb) 
+            verb_index = sentence.find(verb)
             if(verb_index != -1):
                 break
-        
+
         # if verb is behind entity in sentence try to disambiguate
         # Example: sentence: Washington byl první prezident USA.
         #          possible entities: George Washington - person
@@ -270,19 +298,19 @@ class Entity(object):
         if(verb_index != -1):
             proffesions = []
             for s in self.senses:
-                if(self.kb.get_ent_type(s) in ["person", "person:artist"]):
-                    proffesions = self.kb.get_data_for(s, "POVOLANI")
+                if(self.kb.get_ent_type(s) in ["person", "person:artist", "person:fictional"]):
+                    proffesions = self.kb.get_data_for(s, "JOBS")
                     if(proffesions):
-                        proffesions = proffesions.split('|')
+                        proffesions = proffesions.split(KB_MULTIVALUE_DELIM)
                         proffesions = [p for p in proffesions if sentence.find(" " + p + " ", verb_index) != -1]
                         if(proffesions):
                             break
-            
+
             if(proffesions):
                 new_senses = []
                 for s in self.senses:
-                    if self.kb.get_ent_type(s) in ["person", "person:artist"]:
-                        for proffesion in self.kb.get_data_for(s, "POVOLANI").split('|'):
+                    if self.kb.get_ent_type(s) in ["person", "person:artist", "person:fictional"]:
+                        for proffesion in self.kb.get_data_for(s, "JOBS").split(KB_MULTIVALUE_DELIM):
                             if(proffesion in proffesions):
                                 new_senses.append(s)
                                 break
@@ -312,7 +340,7 @@ class Entity(object):
     def disambiguate_with_context(self, context):
         """ Chooses the correct sense of the entity as the preferred one (with context). """
         assert isinstance(context, Context)
-        
+
         # we don't resolve coreference in this step
         if self.is_coreference or not self.candidates:
             return
@@ -330,33 +358,39 @@ class Entity(object):
             static_score = self.kb.get_score(i)
             context_score = 0
             if ent_type == 'geoplace:populatedPlace':
-                context_score = context.country_percentile(self.kb.get_data_for(i, "LOKACE"))
-            elif ent_type in ["person", "person:artist"]:
+                context_score = context.country_percentile(self.kb.get_data_for(i, "LOCATION"))
+            elif ent_type in ["person", "person:artist", "person:fictional"]:
                 context_score = context.person_percentile(i)
-            elif ent_type == 'organisation' or ent_type == 'event':
+            elif ent_type in ['organisation', 'event']:
                 context_score = context.organisation_percentile(i, ent_type)
-            elif ent_type == 'geoplace:protectedArea':
-                context_score = context.prot_area_percentile(i)
-            elif ent_type == 'geoplace:conservationArea':
-                context_score = context.con_area_percentile(i)
-            elif ent_type == 'geoplace:mountain':
-                context_score = context.mountain_percentile(i)
-            elif ent_type == 'geoplace:castle':
-                context_score = context.castle_percentile(i)
-            elif ent_type == 'geoplace:lake':
-                context_score = context.lake_percentile(i)
-            elif ent_type == 'geoplace:forest':
-                context_score = context.forest_percentile(i)
-            elif ent_type == 'geoplace:mountainPass':
-                context_score = context.mountain_pass_percentile(i)
-            elif ent_type == 'geo:mountainRange':
-                context_score = context.mountain_range_percentile(i)
-            elif ent_type == 'geo:river':
-                context_score = context.river_percentile(i)
-            elif ent_type == 'geoplace:observationTower':
-                context_score = context.observation_tower_percentile(i)
-            elif ent_type == 'geo:waterfall':
-                context_score = context.waterfall_percentile(i)
+            elif ent_type in ['country', 'country:former', 'settlement']:
+                context_score = context.country_settlement_percentile(i, ent_type)
+            elif ent_type in ['watercourse', 'waterarea']:
+                context_score = context.water_percentile(i, ent_type)
+            elif re.match(r'geo(:[A-Za-z]+)?', ent_type):
+                context_score = context.common_percentile(i, ent_type)
+            #elif ent_type == 'geoplace:protectedArea':
+                #context_score = context.prot_area_percentile(i)
+            #elif ent_type == 'geoplace:conservationArea':
+                #context_score = context.con_area_percentile(i)
+            #elif ent_type == 'geoplace:mountain':
+                #context_score = context.mountain_percentile(i)
+            #elif ent_type == 'geoplace:castle':
+                #context_score = context.castle_percentile(i)
+            #elif ent_type == 'geoplace:lake':
+                #context_score = context.lake_percentile(i)
+            #elif ent_type == 'geoplace:forest':
+                #context_score = context.forest_percentile(i)
+            #elif ent_type == 'geoplace:mountainPass':
+                #context_score = context.mountain_pass_percentile(i)
+            #elif ent_type == 'geo:mountainRange':
+                #context_score = context.mountain_range_percentile(i)
+            #elif ent_type == 'geo:river':
+                #context_score = context.river_percentile(i)
+            #elif ent_type == 'geoplace:observationTower':
+                #context_score = context.observation_tower_percentile(i)
+            #elif ent_type == 'geo:waterfall':
+                #context_score = context.waterfall_percentile(i)
             if context_score > 0:
                 self.poorly_disambiguated = False
             self.static_score.append(static_score)
@@ -364,16 +398,16 @@ class Entity(object):
             self.score.append(static_score + context_score)
 
         self.set_preferred_sense(self.candidates[self.score.index(max(self.score))])
-        
+
         # if preffered sense for entity is person, increase number of mentions of that person in paragraph
-        if self.kb.get_ent_type(self.get_preferred_sense()) in ["person", "person:artist"] and len(self.candidates) != 1:
-            name = self.kb.get_data_for(self.get_preferred_sense(), "JMENO")
+        if self.kb.get_ent_type(self.get_preferred_sense()) in ["person", "person:artist", "person:fictional"] and len(self.candidates) != 1:
+            name = self.kb.get_data_for(self.get_preferred_sense(), "NAME")
             if name not in context.mentions[context.paragraphs[context.paragraph_index]]['person']:
                 context.mentions[context.paragraphs[context.paragraph_index]]['person'][name] = 0
-            
+
             context.mentions[context.paragraphs[context.paragraph_index]]['person'][name] += 1
 
-    
+
     def resolve_pronoun_coreference(self, context):
         """ Resolves a pronoun coreference using context. """
         assert isinstance(context, Context)
@@ -381,7 +415,7 @@ class Entity(object):
         pronoun_type = PRONOUNS[self.source.lower()]
 
         if pronoun_type == 'M':
-            
+
             #on - point to last male
             if self.source == "on":
                 if context.last_unknown_gender:
@@ -395,7 +429,7 @@ class Entity(object):
                 # other pronoun for male
                 if context.last_person:
                     #get gender of person mentioned last
-                    gender = self.kb.get_data_for(context.last_person.get_preferred_sense(), "POHLAVI")
+                    gender = self.kb.get_data_for(context.last_person.get_preferred_sense(), "GENDER")
                     # last person mentioned - female
                     # point to last male if there is any in current paragraph
                     if gender == "F":
@@ -415,7 +449,7 @@ class Entity(object):
                             context.last_male = context.last_unknown_gender
                             context.last_unknown_gender = None
 
-                        if context.last_male and context.last_male.start_offset >= self.begin_of_paragraph:  
+                        if context.last_male and context.last_male.start_offset >= self.begin_of_paragraph:
                             self.set_preferred_sense(context.last_male.get_preferred_entity())
 
 
@@ -433,7 +467,7 @@ class Entity(object):
                 # other pronoun for female
                 if context.last_person:
                     #get gender of person mentioned last
-                    gender = self.kb.get_data_for(context.last_person.get_preferred_sense(), "POHLAVI")
+                    gender = self.kb.get_data_for(context.last_person.get_preferred_sense(), "GENDER")
                     # last person mentioned - male
                     # point to last female if there is any in current paragraph
                     if gender == "M":
@@ -453,7 +487,7 @@ class Entity(object):
                             context.last_female = context.last_unknown_gender
                             context.last_unknown_gender = None
 
-                        if context.last_female and context.last_female.start_offset >= self.begin_of_paragraph:  
+                        if context.last_female and context.last_female.start_offset >= self.begin_of_paragraph:
                             self.set_preferred_sense(context.last_female.get_preferred_entity())
 
     def __str__(self):
@@ -493,13 +527,13 @@ class Entity(object):
         assert isinstance(right, basestring)
         if not isinstance(right, unicode):
             right = right.decode(sys.getdefaultencoding())
-        
+
         length = len(right)
         text = self.input_string_in_unicode
         if self.end_offset + length > len(text):
             return False
         return text[self.end_offset:self.end_offset + length] == right
-    
+
     def right_sentence(self):
         text = self.input_string_in_unicode[self.end_offset:]
         collum_count = 0
@@ -520,7 +554,7 @@ class Entity(object):
         assert isinstance(left, basestring)
         if not isinstance(left, unicode):
             left = left.decode(sys.getdefaultencoding())
-        
+
         length = len(left)
         text = self.input_string_in_unicode
         if self.start_offset - length < 0:
@@ -547,7 +581,7 @@ class Entity(object):
             return True
         if not self.is_coreference and self.senses:
             kb_type = self.kb.get_ent_type(list(self.senses)[0])
-            if kb_type in ['person', 'artist']:
+            if kb_type in ['person', 'person:artist', 'person:fictional']:
                 return True
         return False
 
@@ -576,7 +610,7 @@ class Context(object):
         # people mentioned by full name in paragraph
         self.people = {}
         self.organisations = {}
-        # list of nationalities mentioned in each paragraph 
+        # list of nationalities mentioned in each paragraph
         self.people_nationalities = {}
         # list of dates mentioned in each paragraph
         self.people_dates = {}
@@ -598,7 +632,7 @@ class Context(object):
 
         # computing statistics for each paragraph
         for par in self.paragraphs:
-            self.mentions[par] = MENTIONS_TYPE
+            self.mentions[par] = MENTIONS_TYPE # FIXME: Jestli se nemýlím, tak toto je chyba. IHMO by tady mělo být deepcopy(MENTIONS_TYPE)
             self.countries[par] = {}
             self.people_nationalities[par] = []
             self.people_dates[par] = []
@@ -630,9 +664,9 @@ class Context(object):
 
                         if(ent_type == "geoplace:populatedPlace"):
                             # get location country name and aliases
-                            name = ent.kb.get_data_for(ent.get_preferred_sense(), "NAZEV")
-                            country = ent.kb.get_data_for(ent.get_preferred_sense(), "LOKACE")
-                       
+                            name = ent.kb.get_data_for(ent.get_preferred_sense(), "NAME")
+                            country = ent.kb.get_data_for(ent.get_preferred_sense(), "LOCATION")
+
                             if name not in self.mentions[par][ent_type]:
                                 self.mentions[par][ent_type][name] = 1
                             else:
@@ -649,7 +683,7 @@ class Context(object):
                             # check if country is already in dictionary
                             name_in_dict = None
                             for c in self.countries[par]:
-                    
+
                                 if(country == c or country in self.countries[par][c]["aliases"]):
                                     name_in_dict = c
                                 else:
@@ -689,12 +723,12 @@ class Context(object):
 
                         # if entity is person update number of her mentions in dictionary
                         else:
-                            if ent_type == "person:artist":
+                            if ent_type == "person:artist": # FIXME: Toto může vést k chybě.
                                 ent_type = "person"
 
-                            name_tag = "JMENO"
-                            if not ent_type in ["person:artist", "person"]:
-                                name_tag = "NAZEV"
+                            name_tag = "NAME"
+                            if not ent_type in ["person:artist", "person", "person:fictional"]:
+                                name_tag = "NAME"
 
 
                             name = ent.kb.get_data_for(ent.get_preferred_sense(), name_tag)
@@ -706,10 +740,10 @@ class Context(object):
                     elif ent.has_preferred_sense():
                         for c in ent.candidates:
                             ent_type = ent.kb.get_ent_type(c)
-                            if ent_type in ["person", "person:artist"]:
-                                professions = ent.kb.get_data_for(c, "POVOLANI")
+                            if ent_type in ["person", "person:artist", "person:fictional"]:
+                                professions = ent.kb.get_data_for(c, "JOBS")
                                 if(professions):
-                                    professions = professions.split('|')
+                                    professions = professions.split(KB_MULTIVALUE_DELIM)
                                     [self.people_professions[par].append(p) for p in professions if par_text.find(p) != -1 and p not in self.people_professions[par]]
 
                 elif isinstance(ent, dates.Date):
@@ -723,14 +757,14 @@ class Context(object):
             par_index += 1
 
         # removing the artificial paragraph
-   
+
     def recompute_paragraph_offset(self, start_offset):
         """
         Recomputes paragraph offset, if the entity at the start_offset belongs
         to the different paragraph.
         """
         assert isinstance(start_offset, int)
-        
+
         # we are in the last paragraph -> no change in paragraph offsets
         if self.paragraph_index + 1 >= len(self.paragraphs):
             return
@@ -747,14 +781,14 @@ class Context(object):
     def update(self, entity):
         """ Updates context (last person, last male, last female, last location etc.). """
         assert isinstance(entity, Entity)
-        
+
         # keep the last entity of each pronoun type for pronoun coreference resolution
         ent_type = self.kb.get_ent_type(entity.get_preferred_sense())
 
-        if ent_type in ['person', 'artist']:
+        if ent_type in ['person', 'person:artist', 'person:fictional']:
             self.before_last_person = self.last_person
             self.last_person = entity
-            gender = self.kb.get_data_for(entity.get_preferred_sense(), "POHLAVI")
+            gender = self.kb.get_data_for(entity.get_preferred_sense(), "GENDER")
             if gender == 'M':
                 self.before_last_male = self.last_male
                 self.last_male = entity
@@ -781,7 +815,7 @@ class Context(object):
             mentioned_in_par_score = mentioned_in_par_score * 100 / sum(self.mentions[par_index][field].values())
 
         return mentioned_in_par_score
-          
+
 
     def person_percentile(self, candidate):
         """
@@ -822,7 +856,7 @@ class Context(object):
         # computing people_profession_score
         people_profession_score = 0
 
-        person_professions = self.kb.get_data_for(candidate, "POVOLANI").split('|')
+        person_professions = self.kb.get_data_for(candidate, "JOBS").split(KB_MULTIVALUE_DELIM)
         for prof in person_professions:
             if prof in self.people_professions[par_index]:
                 people_profession_score += 1
@@ -830,13 +864,13 @@ class Context(object):
             people_profession_score = people_profession_score * 100 / len(self.people_professions[par_index])
 
 
-        person_name = [self.kb.get_data_for(candidate, "JMENO")]
+        person_name = [self.kb.get_data_for(candidate, "NAME")]
         mentioned_in_par_score = self.mentioned_in_par(person_name, 'person')
 #        if person_name in self.mentions[par_index]['person']:
 #            mentioned_in_par_score = self.mentions[par_index]['person'][person_name] * 100 / sum(self.mentions[par_index]['person'].values())
 
         # summing up the scores
-        result = (people_nationality_score + people_date_score + people_profession_score + mentioned_in_par_score) / 4
+        result = numpy.average([people_nationality_score, people_date_score, people_profession_score, mentioned_in_par_score])
 
         # storing new max score
         if candidate in self.people_max_scores and result > self.people_max_scores[candidate]:
@@ -846,17 +880,48 @@ class Context(object):
 
         return result
 
+    def country_settlement_percentile(self, candidate, ent_type):
+        name = [self.kb.get_data_for(candidate, "NAME")]
+        mentioned_in_par_score = self.mentioned_in_par(name, ent_type)
+
+        if ent_type == "settlement":
+            country = [self.kb.get_data_for(candidate, "COUNTRY")]
+            country_score = self.mentioned_in_par(country, 'country')
+            mentioned_in_par_score = numpy.average([mentioned_in_par_score, country_score])
+
+        return mentioned_in_par_score
+
+
+    def water_percentile(self, candidate, ent_type):
+        name = [self.kb.get_data_for(candidate, "NAME")]
+        mentioned_in_par_score = self.mentioned_in_par(name, ent_type)
+
+        if ent_type == 'watercourse':
+            geo = [self.kb.get_data_for(candidate, "SOURCE_LOC")]
+            geo_score = self.mentioned_in_par(geo, 'geo')
+            mentioned_in_par_score = numpy.average([mentioned_in_par_score, geo_score])
+
+        return mentioned_in_par_score
+
+
+    def common_percentile(self, candidate, ent_type):
+        name = [self.kb.get_data_for(candidate, "NAME")]
+        mentioned_in_par_score = self.mentioned_in_par(name, ent_type)
+
+        return mentioned_in_par_score
+
+
     def country_percentile(self, country):
         """ Returns a percentile of a number of location belonging to a country identified by code. """
         assert isinstance(country, str)
 
-        country_score = self.mentioned_in_par(country, 'geoplace:populatedPlace')
+        #country_score = self.mentioned_in_par(country, 'geoplace:populatedPlace')
         #if country in self.mentions[par_index]["geoplace:populated_place"]:
         #   country_score = self.mentions[par_index]["geoplace:populated_place"][country]
 
         #if country_score:
         #    return country_score * 100 / self.country_sum[par_index]
-              
+
         return 0
 
     def organisation_percentile(self, candidate, ent_type):
@@ -864,7 +929,7 @@ class Context(object):
         par_index = self.paragraphs[self.paragraph_index]
 
         #mentioned_in_par_score = 0
-        name = [self.kb.get_data_for(candidate, "NAZEV")]
+        name = [self.kb.get_data_for(candidate, "NAME")]
         mentioned_in_par_score = self.mentioned_in_par(name, ent_type)
         #if ent_type == 'organistaion':
         #    if name in self.mentions[par_index][ent_type]:
@@ -873,10 +938,10 @@ class Context(object):
         #    if name in self.mentions[par_index][ent_type]:
         #        mentioned_in_par_score = self.mentions[par_index][ent_type][name] * 100 / sum(self.mentions[par_index][ent_type].values())
 
- 
+
         #place_score = 0
-        place = [self.kb.get_data_for(candidate, "MISTO")]
-        place_score = self.mentioned_in_par(place, 'geoplace:populatedPlace')
+        place = [self.kb.get_data_for(candidate, "LOCATION")]
+        place_score = self.mentioned_in_par(place, 'settlement')
 
        #if place in self.mentions[par_index]["geoplace:populated_place"]:
         #    place_score = self.mentions[par_index]["geoplace:populated_place"][place]
@@ -886,10 +951,10 @@ class Context(object):
 
         org_date_score = 0
         if ent_type == "organisation":
-            org_dates = [self.kb.get_data_for(candidate, "ZALOZENI"), self.kb.get_data_for(candidate, "ZRUSENI")]
+            org_dates = [self.kb.get_data_for(candidate, "FOUNDED"), self.kb.get_data_for(candidate, "CANCELLED")]
         else:
-            org_dates = [self.kb.get_data_for(candidate, "ZACATEK"), self.kb.get_data_for(candidate, "KONEC")]
-   
+            org_dates = [self.kb.get_data_for(candidate, "START"), self.kb.get_data_for(candidate, "END")]
+
         for context_date in self.people_dates[par_index]:
             for org_date in org_dates:
                 if (context_date.find(org_date) > -1 or org_date.find(context_date) > -1) and org_date:
@@ -898,26 +963,26 @@ class Context(object):
         if self.people_dates[par_index]:
             # normalizing people_date_score
             org_date_score = org_date_score * 100 / len(self.people_dates[par_index])
-        
-        
-        result = (mentioned_in_par_score + place_score + org_date_score) / 3
+
+
+        result = numpy.average([mentioned_in_par_score, place_score, org_date_score])
 
         return result
 
     def prot_area_percentile(self, candidate):
-   
-        area_name = [self.kb.get_data_for(candidate, "NAZEV")]
+
+        area_name = [self.kb.get_data_for(candidate, "NAME")]
         mentioned_in_par_score = self.mentioned_in_par(area_name, 'geoplace:protectedArea')
 
         #if area_name in self.mentions[par_index]['geoplace:protectedArea']:
         #    mentioned_in_par_score = self.mentions[par_index]['geoplace:protectedArea'][area_name] * 100 / sum(self.mentions[par_index]['geoplace:protectedArea'].values())
 
         place_score = 0
-        places = self.kb.get_data_for(candidate, "LOKALITA")
+        places = self.kb.get_data_for(candidate, "LOCATION")
         if(places):
-            places = places.split('|')
+            places = places.split(KB_MULTIVALUE_DELIM)
             place_score = self.mentioned_in_par(places, 'geoplace:populatedPlace')
-            
+
         #    print(places)
         #    for place in places:
         #        if place in self.mentions[par_index]["geoplace:populated_place"]:
@@ -927,24 +992,24 @@ class Context(object):
         #if place_score:
         #    place_score = place_score * 100 / self.country_sum[par_index]
 
-        result = (mentioned_in_par_score + place_score) / 2
+        result = numpy.average([mentioned_in_par_score, place_score])
 
         return result
 
     def con_area_percentile(self, candidate):
 
-        
-        area_name = [self.kb.get_data_for(candidate, "NAZEV")]
+
+        area_name = [self.kb.get_data_for(candidate, "NAME")]
         mentioned_in_par_score = self.mentioned_in_par(area_name, 'geoplace:conservationArea')
 
         #if area_name in self.mentions[par_index]['geoplace:conservation_area']:
         #    mentioned_in_par_score = self.mentions[par_index]['geoplace:conservation_area'][area_name] * 100 / sum(self.mentions[par_index]['geoplace:conservation_area'].values())
 
         place_score = 0
-        places = [self.kb.get_data_for(candidate, "OKRES")]
-        locations = self.kb.get_data_for(candidate, "UMISTENI")
+        places = [self.kb.get_data_for(candidate, "DISTRICT")]
+        locations = self.kb.get_data_for(candidate, "LOCATION")
         if locations:
-            places.extend(locations.split('|'))
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
         place_score = self.mentioned_in_par(places, 'geoplace:populatedPlace')
 
        #if places:
@@ -955,23 +1020,23 @@ class Context(object):
        #if place_score:
        #    place_score = place_score * 100 / self.country_sum[par_index]
 
-        result = (mentioned_in_par_score + place_score) / 2
+        result = numpy.average([mentioned_in_par_score, place_score])
 
         return result
 
     def mountain_percentile(self, candidate):
 
-        area_name = [self.kb.get_data_for(candidate, "NAZEV")]
+        area_name = [self.kb.get_data_for(candidate, "NAME")]
         mentioned_in_par_score = self.mentioned_in_par(area_name, 'geoplace:mountain')
 
         #if area_name in self.mentions[par_index]['geoplace:mountain']:
         #    mentioned_in_par_score = self.mentions[par_index]['geoplace:mountain'][area_name] * 100 / sum(self.mentions[par_index]['geoplace:mountain'].values())
 
         place_score = 0
-        places = [self.kb.get_data_for(candidate, "SVETADIL")]
-        locations = self.kb.get_data_for(candidate, "STAT")
+        places = [self.kb.get_data_for(candidate, "CONTINENT")]
+        locations = self.kb.get_data_for(candidate, "COUNTRY")
         if locations:
-            places.extend(locations.split('|'))
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
         place_score = self.mentioned_in_par(places, 'geoplace:populatedPlace')
 
         #if places:
@@ -983,37 +1048,37 @@ class Context(object):
         #if place_score:
         #    place_score = place_score * 100 / self.country_sum[par_index]
 
-        result = (mentioned_in_par_score + place_score) / 2
+        result = numpy.average([mentioned_in_par_score, place_score])
 
         return result
 
     def castle_percentile(self, candidate):
 
-        area_name = [self.kb.get_data_for(candidate, "NAZEV")]
+        area_name = [self.kb.get_data_for(candidate, "NAME")]
         mentioned_in_par_score = self.mentioned_in_par(area_name, 'geoplace:castle')
 
         #if area_name in self.mentions[par_index]['geoplace:castle']:
          #   mentioned_in_par_score = self.mentions[par_index]['geoplace:castle'][area_name] * 100 / sum(self.mentions[par_index]['geoplace:castle'].values())
 
         place_score = 0
-        places = [self.kb.get_data_for(candidate, "STAT")]
+        places = [self.kb.get_data_for(candidate, "COUNTRY")]
         place_score = self.mentioned_in_par(places, 'geoplace:populatedPlace')
         #if places:
         #    for place in places:
         #        if place in self.mentions[par_index]["geoplace:populated_place"]:
         #            place_score = self.mentions[par_index]["geoplace:populated_place"][place]
         #            break
-        #            
+        #
         #if place_score:
         #    place_score = place_score * 100 / self.country_sum[par_index]
 #
-        result = (mentioned_in_par_score + place_score) / 2
+        result = numpy.average([mentioned_in_par_score, place_score])
 
         return result
 
     def lake_percentile(self, candidate):
 
-        area_name = self.kb.get_data_for(candidate, "NAZEV")
+        area_name = self.kb.get_data_for(candidate, "NAME")
         mentioned_in_par_score = self.mentioned_in_par(area_name, 'geoplace:lake')
 
         #if area_name in self.mentions[par_index]['geoplace:lake']:
@@ -1021,15 +1086,15 @@ class Context(object):
 
         place_score = 0
         places = []
-        locations = self.kb.get_data_for(candidate, "OBEC")
+        locations = self.kb.get_data_for(candidate, "MUNICIPALITY")
         if locations:
-            places.extend(locations.split('|'))
-        locations = self.kb.get_data_for(candidate, "OKRES")
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
+        locations = self.kb.get_data_for(candidate, "DISTRICT")
         if locations:
-            places.extend(locations.split('|'))
-        locations = self.kb.get_data_for(candidate, "STAT")
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
+        locations = self.kb.get_data_for(candidate, "COUNTRY")
         if locations:
-            places.extend(locations.split('|')) 
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
         place_score = self.mentioned_in_par(places, 'geoplace:populatedPlace')
 
         #if places:
@@ -1037,103 +1102,103 @@ class Context(object):
         #        if place in self.mentions[par_index]["geoplace:populated_place"]:
         #            place_score = self.mentions[par_index]["geoplace:populated_place"][place]
         #            break
-        #            
+        #
         #if place_score:
         #    place_score = place_score * 100 / self.country_sum[par_index]
 #
-        result = (mentioned_in_par_score + place_score) / 2
+        result = numpy.average([mentioned_in_par_score, place_score])
 
         return result
 
     def forest_percentile(self, candidate):
-        area_name = self.kb.get_data_for(candidate, "NAZEV")
+        area_name = self.kb.get_data_for(candidate, "NAME")
         mentioned_in_par_score = self.mentioned_in_par(area_name, 'geoplace:forest')
 
         places = []
-        locations = self.kb.get_data_for(candidate, "OBEC")
+        locations = self.kb.get_data_for(candidate, "MUNICIPALITY")
         if locations:
-            places.extend(locations.split('|'))
-        locations = self.kb.get_data_for(candidate, "OKRES")
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
+        locations = self.kb.get_data_for(candidate, "DISTRICT")
         if locations:
-            places.extend(locations.split('|'))
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
         place_score = self.mentioned_in_par(places, 'geoplace:populatedPlace')
 
-        result = (mentioned_in_par_score + place_score) / 2
+        result = numpy.average([mentioned_in_par_score, place_score])
         return result
 
     def mountain_pass_percentile(self, candidate):
-        area_name = self.kb.get_data_for(candidate, "NAZEV")
+        area_name = self.kb.get_data_for(candidate, "NAME")
         mentioned_in_par_score = self.mentioned_in_par(area_name, 'geoplace:mountainPass')
 
         places = []
-        locations = self.kb.get_data_for(candidate, "1_STAT")
+        locations = self.kb.get_data_for(candidate, "1_COUNTRY")
         if locations:
-            places.extend(locations.split('|'))
-        locations = self.kb.get_data_for(candidate, "2_STAT")
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
+        locations = self.kb.get_data_for(candidate, "2_COUNTRY")
         if locations:
-            places.extend(locations.split('|'))
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
         place_score = self.mentioned_in_par(places, 'geoplace:populatedPlace')
 
-        result = (mentioned_in_par_score + place_score) / 2
+        result = numpy.average([mentioned_in_par_score, place_score])
         return result
 
 
     def mountain_range_percentile(self, candidate):
-        area_name = self.kb.get_data_for(candidate, "NAZEV")
+        area_name = self.kb.get_data_for(candidate, "NAME")
         mentioned_in_par_score = self.mentioned_in_par(area_name, 'geo:mountainRange')
 
-        places = [self.kb.get_data_for(candidate, "STAT")]
+        places = [self.kb.get_data_for(candidate, "COUNTRY")]
         place_score = self.mentioned_in_par(places, 'geoplace:populatedPlace')
 
-        result = (mentioned_in_par_score + place_score) / 2
+        result = numpy.average([mentioned_in_par_score, place_score])
         return result
 
     def river_percentile(self, candidate):
-        area_name = self.kb.get_data_for(candidate, "NAZEV")
+        area_name = self.kb.get_data_for(candidate, "NAME")
         mentioned_in_par_score = self.mentioned_in_par(area_name, 'geo:river')
 
         result = mentioned_in_par_score
         return result
 
     def observation_tower_percentile(self, candidate):
-        area_name = self.kb.get_data_for(candidate, "NAZEV")
+        area_name = self.kb.get_data_for(candidate, "NAME")
         mentioned_in_par_score = self.mentioned_in_par(area_name, 'geoplace:observationTower')
 
         places = []
-        locations = self.kb.get_data_for(candidate, "KRAJ")
+        locations = self.kb.get_data_for(candidate, "REGION")
         if locations:
-            places.extend(locations.split('|'))
-        locations = self.kb.get_data_for(candidate, "OKRES")
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
+        locations = self.kb.get_data_for(candidate, "DISTRICT")
         if locations:
-            places.extend(locations.split('|'))
-        locations = self.kb.get_data_for(candidate, "STAT")
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
+        locations = self.kb.get_data_for(candidate, "COUNTRY")
         if locations:
-            places.extend(locations.split('|'))
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
         place_score = self.mentioned_in_par(places, 'geoplace:populatedPlace')
 
-        result = (mentioned_in_par_score + place_score) / 2
+        result = numpy.average([mentioned_in_par_score, place_score])
         return result
 
     def waterfall_percentile(self, candidate):
-        area_name = self.kb.get_data_for(candidate, "NAZEV")
+        area_name = self.kb.get_data_for(candidate, "NAME")
         mentioned_in_par_score = self.mentioned_in_par(area_name, 'geo:waterfall')
 
         places = []
-        locations = self.kb.get_data_for(candidate, "OBECK")
+        locations = self.kb.get_data_for(candidate, "MUNICIPALITY")
         if locations:
-            places.extend(locations.split('|'))
-        locations = self.kb.get_data_for(candidate, "OKRES")
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
+        locations = self.kb.get_data_for(candidate, "DISTRICT")
         if locations:
-            places.extend(locations.split('|'))
-        locations = self.kb.get_data_for(candidate, "KRAJ")
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
+        locations = self.kb.get_data_for(candidate, "REGION")
         if locations:
-            places.extend(locations.split('|'))
-        locations = self.kb.get_data_for(candidate, "STAT")
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
+        locations = self.kb.get_data_for(candidate, "COUNTRY")
         if locations:
-            places.extend(locations.split('|'))
+            places.extend(locations.split(KB_MULTIVALUE_DELIM))
         place_score = self.mentioned_in_par(places, 'geoplace:populatedPlace')
 
-        result = (mentioned_in_par_score + place_score) / 2
+        result = numpy.average([mentioned_in_par_score, place_score])
         return result
 
 
@@ -1152,16 +1217,16 @@ class Context(object):
 def offsets_of_paragraphs(input_string):
     """ Returns a list of starting offsets of each paragraph in input_string. """
     assert isinstance(input_string, unicode)
-    
+
     result = [0]
-    result.extend((par_match.end() for par_match in re.finditer(r"\r\n[\r\n]+", input_string)))
+    result.extend((par_match.end() for par_match in re.finditer(r"(\r?\n|\r)\1+", input_string))) # {≥2×LF|≥2×CRLF|≥2×CR} ⇒ nový odstavec
     return result
 
 #example:
     """
     Martin Havelka je ........ M. Havelka bol ....... .
 
-    
+
     Maros Havelka .................
 
 
@@ -1191,11 +1256,11 @@ def fix_poor_disambiguation(entities, context):
 
     for e in entities:
         if e.poorly_disambiguated:
-            candidates = []   
+            candidates = []
             for s in e.senses:
                 if s in strong_entities_by_id:
                     candidates += strong_entities_by_id[s]
-            
+
             if candidates != []:
                 e.set_preferred_sense(get_nearest_entity(e, candidates))
                 e.poorly_disambiguated = False
@@ -1333,7 +1398,7 @@ def resolve_coreferences(entities, context, print_all, register):
     assert isinstance(context, Context)
     assert isinstance(print_all, bool)
     assert isinstance(register, EntityRegister)
-    
+
     for e in entities:
         # adding propriate candidates into people set
         if not e.is_coreference and e.has_preferred_sense():
@@ -1341,7 +1406,7 @@ def resolve_coreferences(entities, context, print_all, register):
             if ent_type in ['person']:
                 context.people_in_text.add(e.get_preferred_sense())
 
-    for e in entities:   
+    for e in entities:
         if e.is_coreference:
             # coreferences by a name to p eople out of context are discarded
             if not print_all:
@@ -1352,9 +1417,9 @@ def resolve_coreferences(entities, context, print_all, register):
                     candidates = []
                     for sense in e.partial_match_senses:
                         candidates += list(register.id2entity[sense])
-                    
+
                     # each candidate has to contain the text of a given entity
-                    candidates = (c for c in candidates if remove_accent(e.source).lower() in remove_accent(c.source).lower())
+                    candidates = (c for c in candidates if remove_accent_unicode(e.source).lower() in remove_accent_unicode(c.source).lower())
                     # choosing the nearest predecessor candidate for a coreference
                     entity = get_nearest_predecessor(e, candidates)
                     if entity:
@@ -1373,7 +1438,7 @@ def get_nearest_predecessor(_entity, _candidates):
     """ Returns the nearest predecessor for a given entity from a given list of candidates. """
     assert isinstance(_entity, Entity)
     assert isinstance(_candidates, collections.Iterable) # iterable of Entity
-    
+
     # sorting candidates according to the distance from a given entity # NOTE: Nešlo by to napsat lépe?
     candidates = sorted(_candidates, key=lambda candidate: _entity.start_offset - candidate.start_offset)
     for candidate in candidates:
@@ -1384,11 +1449,36 @@ def get_nearest_entity(_entity, _candidates):
     """ Returns the nearest entity for a given entity from a given list of candidates. """
     assert isinstance(_entity, Entity)
     assert isinstance(_candidates, collections.Iterable) # iterable of Entity
-    
+
     # sorting candidates according to the distance from a given entity
     candidates = sorted(_candidates, key=lambda candidate: abs(_entity.start_offset - candidate.start_offset))
-    
+
     return candidates[0].preferred_sense
+
+FigaOutput = collections.namedtuple("FigaOutput", "kb_rows start_offset end_offset fragment flag")
+
+def parseFigaOutput(figa_output):
+    """
+    Parsuje výstup z figy.
+
+    Syntax výstupního formátu v Backusově-Naurově formě (BNF):
+        <výstup Figa> :== <řádek výstupu>
+            | <řádek výstupu> <výstup Figa>
+        <řádek výstupu> :== <čísla řádků do KB> "\t" <počáteční offset>
+                "\t" <koncový offset> "\t" <fragment> "\t" <příznak> "\n"
+        <čísla řádků do KB> :== <číslo>
+            | <číslo> ";" <čísla řádků do KB>
+    kde:
+        <čísla řádků do KB> odkazují na řádky ve znalostní bázi s entitami, jenž mají mezi atributy <fragment> (řádek 0 značí zájmeno – coreference)
+        <počáteční offset> a <koncový offset> jsou pozice prvního a posledního znaku řetězce <fragment> (na pozici 1 leží první znak vstupního textu) – to je třeba upravit, aby šlo využít přímo input[start_offset:end_offset]
+        <příznak> může nabývat dvou hodnot: F – fragment plně odpovídá atributu odkazovaných entit; S – byl tolerován překlep ve fragmentu
+    """
+
+    # Formát "číslo_řádku[;číslo_řádku]\tpočáteční_offset\tkoncový_offset\tnázev_entity\tF"
+    for line in figa_output.split("\n"):
+        if line != "":
+            kb_rows, start_offset, end_offset, name, flag = line.split("\t")
+            yield FigaOutput(map(int, kb_rows.split(";")), int(start_offset)-1, int(end_offset), name, flag) # Figa má start_offset+1 (end_offset má dobře).
 
 seek_names = None
 output = None
@@ -1412,29 +1502,33 @@ def get_entities_from_figa(kb, input_string, input_string_in_unicode, lowercase,
         if lowercase:
             lower = "-lower"
 
-        seek_names.load_dict(os.path.dirname(os.path.realpath(__file__)) + "/figa/automata" + lower + ".ct")
+        path_to_figa_dict = os.path.dirname(os.path.realpath(__file__)) + "/figa/automata" + lower
+        if os.path.isfile(path_to_figa_dict + ".dct"):
+            path_to_figa_dict += ".dct" # DARTS
+        else:
+            path_to_figa_dict += ".ct" # CEDAR
+        seek_names.load_dict(path_to_figa_dict)
 
     # getting data from figa
     if lowercase:
-    	output = seek_names.lookup_string(input_string.lower())
+        output = seek_names.lookup_string(input_string.lower())
     else:
-    	output = seek_names.lookup_string(input_string)
+        output = seek_names.lookup_string(input_string)
+
     entities = []
 
     # processing figa output and creating Entity objects
-    #print(output)
-    for line in output.split("\n")[:-1]:
-        entity_attributes = line.split('\t')
-    	e = Entity(entity_attributes, kb, input_string, input_string_in_unicode, register)
-    	global_senses.update(e.senses)
-    	entities.append(e)
-    
+    for line in parseFigaOutput(output):
+        e = Entity(line, kb, input_string, input_string_in_unicode, register)
+        global_senses.update(e.senses)
+        entities.append(e)
+
     return entities
 
 def remove_shorter_entities(entities):
     """ Removing shorter entity from overlapping entities. """
     assert isinstance(entities, list) # list of Entity
-    
+
     # figa should always return the longest match first
     entity_offsets = set()
     new_entities = []
@@ -1466,7 +1560,7 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
     assert isinstance(remove, bool)
     assert isinstance(split_interval, bool)
     assert isinstance(find_names, bool)
-    
+
     def debugChangesInEntities(entities, responsible_line):
         if debug.DEBUG_EN:
             global debug_last_status_of_entities
@@ -1476,29 +1570,31 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
                 debug_last_status_of_entities = new_status_of_entities
             else:
                 debug_last_status_of_entities = [e+"\n" for e in map(str, sorted(entities, key=lambda ent: ent.start_offset))]
-    
+
     # replacing non-printable characters and semicolon with space characters
     input_string = re.sub("[;\x01-\x08\x0e-\x1f\x0c\x7f]", " ", input_string)
     # input_string in Unicode
     input_string_in_unicode = input_string.decode("utf8", "replace")
     # running with parametr --remove_accent
     if remove:
-        input_string = remove_accent(input_string)
+        input_string = remove_accent_str(input_string)
 
     # creating entity register
     register = EntityRegister()
     # a set of all possible senses
     global_senses = set()
+
     # getting entities from figa
     figa_entities = get_entities_from_figa(kb, input_string, input_string_in_unicode, lowercase, global_senses, register)
-     
+    debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
+
     # retaining only possible coreferences for each entity
     for e in figa_entities:
         e.partial_match_senses = e.partial_match_senses & global_senses
 
     # removing shorter entity from overlapping entities
     figa_entities = remove_shorter_entities(figa_entities)
-    #debugChangesInEntities(entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
+    debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
 
     # removing entities without any sense
     nationalities = []
@@ -1509,8 +1605,7 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
         elif e.senses or e.partial_match_senses or e.source.lower() in PRONOUNS:
             entities.append(e)
 
-    #entities = [e for e in entities if e.senses or e.partial_match_senses or e.source.lower() in PRONOUNS]
-    #debugChangesInEntities(entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
+    debugChangesInEntities(entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
 
     # searches for dates and intervals in the input
     dates_and_intervals = dates.find_dates(input_string_in_unicode, split_interval=split_interval)
@@ -1531,7 +1626,7 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
 
     #for e in entities:
     #    for s in e.senses:
-    #        print(e.kb.get_ent_type(s) + "  " + str(e.kb.get_data_for(s,'NAZEV')) + "  " + e.source)
+    #        print(e.kb.get_ent_type(s) + "  " + str(e.kb.get_data_for(s,'NAME')) + "  " + e.source)
 
     # disambiguates without context
     [e.disambiguate_without_context() for e in entities]
@@ -1541,11 +1636,11 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
 
     # disambiguates with context
     [e.disambiguate_with_context(context) for e in entities]
-    #debugChangesInEntities(entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
+    debugChangesInEntities(entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
     fix_poor_disambiguation(entities, context)
-    #debugChangesInEntities(entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
+    debugChangesInEntities(entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
 
-    name_coreferences = [e for e in entities if e.source.lower() not in PRONOUNS]
+    #name_coreferences = [e for e in entities if e.source.lower() not in PRONOUNS]
     #resolve_coreferences(name_coreferences, context, print_all, register) # Zde se ověřuje, zda-li části jmen jsou odkazy nebo samostatné entity.
     resolve_coreferences(entities, context, print_all, register)
 
@@ -1574,7 +1669,7 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
         print("\n".join(map(str, entities_and_dates)))
 
     return entities_and_dates
-	
+
 
 def main():
     # argument parsing

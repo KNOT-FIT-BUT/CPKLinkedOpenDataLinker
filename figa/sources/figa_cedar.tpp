@@ -9,7 +9,7 @@
  * Class:       figa_cedar
  * Purpose:     extract all associated values stored in subtree 
  * Parameters:  dict    - dictionary
- *		        def     - root node of subtree
+ *              def     - root node of subtree
  *              res_val - return vector for associated values
  *              first   - indicator if this is first call
  * Returns:     Nothing
@@ -53,7 +53,7 @@ void figa_cedar::get_values(dict_T &dict,std::size_t def,vector<int>&res_val,boo
  * Purpose:     extract posible entities from subtree 
  * Parameters:  s       - string to find the subtree
  *              dict    - dictionary 
- *		        def     - root node of subtree, if 0, s is used
+ *              def     - root node of subtree, if 0, s is used
  *              res     - return vector for entites with their values
  *              dept    - flag to stop it from going into subtree of associated values
  * Returns:     Nothing
@@ -123,7 +123,7 @@ void figa_cedar::autocomplete(string s, dict_T &dict,std::size_t def,vector<t_se
  * Purpose:     check th eend of the word in dictionary if it has associated values
  *              and if it is followed by another word
  * Parameters:  dict        - dictionary 
- *		        from        - current node
+ *              from        - current node
  *              res_val_from- return vector of nodes with possible entities
  *              cont_from   - return vector of nodes with associated values
  *              value       - value to check
@@ -148,7 +148,7 @@ void figa_cedar::check_and_save_value(dict_T &dict,size_t from,vector<std::size_
  * Class:       figa_cedar 
  * Purpose:     generates UTF-8 symbol by trying all posible symbols for given byte of UTF-8 symbol  
  * Parameters:  dict        - dictionary 
- *		        from        - current node in tree
+ *              from        - current node in tree
  *              res_val_from- return vector for nodes with possible entities
  *              cont_from   - return vector for nodes with associated values
  *              utflevel    - defines hte position of current byte in generated UTF-8 symbol
@@ -210,7 +210,7 @@ void figa_cedar::spellcheck_generate(dict_T &dict,size_t from,vector<std::size_t
  * Purpose:     spellcheck given word, from all given nodes, then it updates this nodes
  *              with all new reached nodes 
  * Parameters:  dict        - dictionary 
- *		        s           - word to spellcheck
+ *              s           - word to spellcheck
  *              res_val_from- vector all all curent position in tree
  *              cont_from   - return vector for nodes with associated values
  * Returns:     Nothing
@@ -678,6 +678,7 @@ void figa_cedar::spell_KBlookup(dict_T &dict, istream &ifs){
     // flags
     bool start = true;    
     bool cant_load_more = true;
+    bool word_is_uri = false;
     
     // initializing structure that holds temporary context and laoded words
     current.from = 0;
@@ -709,6 +710,7 @@ void figa_cedar::spell_KBlookup(dict_T &dict, istream &ifs){
         char c;
         if(current.load && ifs.good()){ // need to load more
             cont.start = count;
+            word_is_uri = false;
             while(true){ // loading new word
                 c = ifs.get();
                 // always increase if counting in bytes, increase if ASCII symbol
@@ -716,7 +718,20 @@ void figa_cedar::spell_KBlookup(dict_T &dict, istream &ifs){
                     count++;                            // increase if c is 11xxxxxx or higher -> utf-8 symbol begin
                 }
                 //cout << c << "  ";
-                if(delimiter(c) || !ifs.good()){ // end at delimiter
+                if ((word.size() == 4 && word == "http" || word.size() == 5 && word == "https") && c == ':') {
+                    word_is_uri = true;
+                }
+                
+                if (!ifs.good()) {
+                    break;
+                } else if (word_is_uri) {
+                    if (delimiter(c) && ! ispunct(c)) { // end at delimiter if is not a punctiation
+                        break;
+                    }
+                } else if (delimiter(c)) { // end at delimiter
+                    if (word.size() == 1 && c == '.') { // append dot to an initial
+                        word.push_back(c);
+                    }
                     break;
                 }
                 word.push_back(c);
@@ -894,12 +909,15 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
     t_status current;
     // variables for work with dictionary
     string word;
+    string punctiation, word_delimiter;
+    const string space = " ";
     int value = 0;
     std::size_t pos = 0;
     
     // flags
     bool start = true;    
     bool cant_load_more = true;
+    bool word_is_uri = false;
     
     // initializing structure that holds temporary context and laoded words
     current.from = 0;
@@ -931,6 +949,7 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
         char c;
         if(current.load && ifs.good()){ // need to load more
             cont.start = count;
+            word_is_uri = false;
             while(true){ // loading new word
                 c = ifs.get();
                 // always increase if counting in bytes, increase if ASCII symbol
@@ -938,7 +957,17 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
                     count++;                            // increase if c is 11xxxxxx or higher -> utf-8 symbol begin
                 }
                 //cout << c << "  ";
-                if(delimiter(c) || !ifs.good()){ // end at delimiter
+                if ((word.size() == 4 && word == "http" || word.size() == 5 && word == "https") && c == ':') {
+                    word_is_uri = true;
+                }
+                
+                if (!ifs.good()) {
+                    break;
+                } else if (word_is_uri) {
+                    if (delimiter(c) && ! ispunct(c)) { // end at delimiter if is not a punctiation
+                        break;
+                    }
+                } else if (delimiter(c)) { // end at delimiter
                     break;
                 }
                 word.push_back(c);
@@ -957,7 +986,18 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
                 current.value.push_back(cont);
                 // try to go on next word
                 if(value == NO_VALUE || value >= 0){
-                    value = dict.traverse(" ",current.from,pos = 0);
+                    if(ispunct(c)) {
+                        punctiation = c;
+                        word_delimiter = punctiation + space;
+                        value = dict.traverse(word_delimiter.c_str(),current.from,pos = 0);
+                        if(value != NO_VALUE && value < 0) {
+                            word_delimiter = punctiation;
+                            current.from = cont.from;
+                            value = dict.traverse(word_delimiter.c_str(),current.from,pos = 0);
+                        }
+                    } else {
+                        value = dict.traverse(" ",current.from,pos = 0);
+                    }
                 }
                 if(value == NO_VALUE || value >= 0){ // word was found in dict, with or without associated value
                     continue;
