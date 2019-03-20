@@ -456,7 +456,7 @@ def process_person_common(person_type, _fields, _line_num, alt_names, confidence
 			unwanted_match = UNWANTED_MATCH.search(name)
 			if surname_match and not unwanted_match:
 				surname = surname_match.group(0)
-				add_to_dictionary(surname, _line_num, person_type, _fields, alt_names)
+				add_to_dictionary(surname, t, _line_num, person_type, _fields, alt_names)
 
 
 def process_other(_fields, _line_num, alt_names):
