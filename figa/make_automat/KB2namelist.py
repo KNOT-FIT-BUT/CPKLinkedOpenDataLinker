@@ -24,6 +24,7 @@ limitations under the License.
 
 import itertools
 import argparse
+import gc
 import os
 import regex
 import sys
@@ -169,6 +170,8 @@ def process_czechnames(cznames_file, strip_nameflags = True):
 		for line in f:
 			if line:
 				line = line.strip('\n').split('\t')
+				if len(line) < 4:
+					raise ValueError("Some column missing: {}".format(line))
 				name = line[0]
 				inflections = line[2].split('|') if line[2] != '' else []
 				for idx, infl in enumerate(inflections):
@@ -526,12 +529,14 @@ if __name__ == "__main__":
 				word_freq[k] = word_freq[k] / word_freq_total[k.lower()]
 				dbg_f.write(k + "\t" + str(word_freq[k]) + "\n")
 			dbg_f.close()
+		gc.collect()
 
 		if args.czechnames:
 			czechnames_file = args.czechnames
 		else:
 			czechnames_file = 'czechnames_' + kb_version + '.out'
 		alternatives = process_czechnames(czechnames_file, False)
+		gc.collect()
 
 		# processing the KB
 		line_num = 1
@@ -548,6 +553,7 @@ if __name__ == "__main__":
 			else:
 				process_other(fields, str(line_num), alternatives)
 			line_num += 1
+			gc.collect()
 
 		# Subnames in all inflections with 'N'
 		for subname in g_subnames:
