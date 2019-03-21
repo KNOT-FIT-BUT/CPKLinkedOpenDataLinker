@@ -134,9 +134,8 @@ if ! test -f "${F_ENTITIES_WITH_TYPEFLAGS}"; then
 fi
 
 if ! test -f "${F_CZECHNAMES}" || test `stat -c %Y "${F_CZECHNAMES}"` -lt `stat -c %Y "${F_ENTITIES_WITH_TYPEFLAGS}"`; then
-  python3 czechnames/namegen.py -o "${F_TMP_CZECHNAMES}" "${F_ENTITIES_WITH_TYPEFLAGS}" >"${F_TMP_CZECHNAMES}.log" 2>"${F_TMP_CZECHNAMES}.err.log" #-x "${F_CZECHNAMES_INVALID}_gender" -X "${F_CZECHNAMES_INVALID}_inflection" "${F_ENTITIES_WITH_TYPEFLAGS}"
+  python3 czechnames/namegen.py --include-no-morphs -o "${F_TMP_CZECHNAMES}" "${F_ENTITIES_WITH_TYPEFLAGS}" >"${F_TMP_CZECHNAMES}.log" 2>"${F_TMP_CZECHNAMES}.err.log" #-x "${F_CZECHNAMES_INVALID}_gender" -X "${F_CZECHNAMES_INVALID}_inflection" "${F_ENTITIES_WITH_TYPEFLAGS}"
   mv "${F_TMP_CZECHNAMES}" "${F_CZECHNAMES}"
-
 fi
 
 #rm -f "${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
