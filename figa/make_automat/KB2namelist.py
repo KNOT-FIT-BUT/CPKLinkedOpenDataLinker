@@ -294,40 +294,36 @@ def add_to_dictionary(_key, _nametype, _value, _type, _fields, alt_names):
 						tmp_fn_others = name_parts.group(2).strip().split()
 						n_unknowns = name_parts.group(3).strip().split()
 						tmp_sn_all = name_parts.group(4)
-						if name_parts.group(5) not in ['#S', '#SE', '#R'] and len(n_unknowns):
-							tmp_sn = n_unknowns.pop()
-							if tmp_sn:
-								tmp_sn_all = tmp_sn + ' ' + tmp_sn_all
+						if name_parts.group(5) in ['#S', '#SE']:
+							for i in range(len(n_unknowns) + 1):
+								sep_special = ""
+								fn_others_full = ""
+								fn_others_abbr = ""
 
-						for i in range(len(n_unknowns) + 1):
-							sep_special = ""
-							fn_others_full = ""
-							fn_others_abbr = ""
+								fn_others = tmp_fn_others + n_unknowns[:i]
+								if len(fn_others):
+									sep_special = " "
+									fn_others_full += " ".join(fn_others)
+									for fn_other in fn_others:
+										fn_others_abbr += fn_other[:1] + ". "
+									fn_others_abbr = fn_others_abbr.strip()
 
-							fn_others = tmp_fn_others + n_unknowns[:i]
-							if len(fn_others):
-								sep_special = " "
-								fn_others_full += " ".join(fn_others)
-								for fn_other in fn_others:
-									fn_others_abbr += fn_other[:1] + ". "
-								fn_others_abbr = fn_others_abbr.strip()
+								sn_all = ' '.join(n_unknowns[i:])
+								if sn_all:
+									sn_all += ' ' + tmp_sn_all
+								else:
+									sn_all = tmp_sn_all
 
-							sn_all = ' '.join(n_unknowns[i:])
-							if sn_all:
-								sn_all += ' ' + tmp_sn_all
-							else:
-								sn_all = tmp_sn_all
-
-							# For all of following format exaplaining comments of additions let us assume, that Johann Gottfried Bernhard is firstnames and a surname is Bach only.
-							add("{} {}{}{}".format(fn_1st, fn_others_abbr, sep_special, sn_all), _value, _type)       # Johann G. B. Bach
-							add("{}. {}{}{}".format(fn_1st[:1], fn_others_abbr, sep_special, sn_all), _value, _type)  # J. G. B. Bach
-							add("{} {}".format(fn_1st, sn_all), _value, _type)                                        # Johann Bach
-							add("{}. {}".format(fn_1st[:1], sn_all), _value, _type)                                   # J. Bach
-							add("{}, {}{}{}".format(sn_all, fn_1st, sep_special, fn_others_full), _value, _type)      # Bach, Johann Gottfried Bernhard
-							add("{}, {}{}{}".format(sn_all, fn_1st, sep_special, fn_others_abbr), _value, _type) # Bach, Johann G. B.
-							add("{}, {}.{}{}".format(sn_all, fn_1st[:1], sep_special, fn_others_abbr), _value, _type) # Bach, J. G. B.
-							add("{}, {}".format(sn_all, fn_1st), _value, _type)                                       # Bach, Johann
-							add("{}, {}.".format(sn_all, fn_1st[:1]), _value, _type)                                  # Bach, J.
+								# For all of following format exaplaining comments of additions let us assume, that Johann Gottfried Bernhard is firstnames and a surname is Bach only.
+								add("{} {}{}{}".format(fn_1st, fn_others_abbr, sep_special, sn_all), _value, _type)       # Johann G. B. Bach
+								add("{}. {}{}{}".format(fn_1st[:1], fn_others_abbr, sep_special, sn_all), _value, _type)  # J. G. B. Bach
+								add("{} {}".format(fn_1st, sn_all), _value, _type)                                        # Johann Bach
+								add("{}. {}".format(fn_1st[:1], sn_all), _value, _type)                                   # J. Bach
+								add("{}, {}{}{}".format(sn_all, fn_1st, sep_special, fn_others_full), _value, _type)      # Bach, Johann Gottfried Bernhard
+								add("{}, {}{}{}".format(sn_all, fn_1st, sep_special, fn_others_abbr), _value, _type) # Bach, Johann G. B.
+								add("{}, {}.{}{}".format(sn_all, fn_1st[:1], sep_special, fn_others_abbr), _value, _type) # Bach, J. G. B.
+								add("{}, {}".format(sn_all, fn_1st), _value, _type)                                       # Bach, Johann
+								add("{}, {}.".format(sn_all, fn_1st[:1]), _value, _type)                                  # Bach, J.
 
 				else:
 					add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>", key_inflection), _value, _type) # Adolf Born -> A. Born
