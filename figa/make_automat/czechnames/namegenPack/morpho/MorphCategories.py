@@ -77,7 +77,9 @@ class MorphCategory(Enum):
         """
         return self._mappingLntrf[self]
     
-        
+    def __str__(self):
+        return self.lntrfValue
+    
     @classmethod    
     def fromLntrf(cls, val):
         """
@@ -227,7 +229,7 @@ class POS(MorphCategory):
     INTERJECTION=10
     """citoslovce"""
     
-    ABBREVIATION="a"
+    ABBREVIATION="A"
     """zkratka"""
     
     @staticmethod
