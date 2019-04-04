@@ -553,7 +553,7 @@ if __name__ == "__main__":
 			else:
 				process_other(fields, str(line_num), alternatives)
 			line_num += 1
-			gc.collect()
+		gc.collect()
 
 		# Subnames in all inflections with 'N'
 		for subname in g_subnames:
