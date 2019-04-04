@@ -402,7 +402,12 @@ def add(_key, _value, _type):
 	"""
 
 	_key = regex.sub(r"#[A-Za-z0-9]E?(?= |,|\.|-|–|$)", "", _key)
+	if '\u200b' in _key:
+		add(regex.sub(r"\u200b *", ' ', _key), _value, _type) # Add new key with space instead of zero width space (including insurance against presence of multiple space due to added new one)
+		_key = regex.sub(r"#[A-Za-z0-9]+\u200b", '', _key) # Remove word mark including zero width space
+
 	_key = regex.sub(r"#L(?=[0-9])", "", _key) # temporary fix for mountains like K#L12, K#L2, ... (will be solved by extra separator by M. Dočekal)
+	_key = regex.sub(r"(?<=\.)#4", "", _key) # temporary fix for ordinals like <something> 1.#4díl, ... (will be solved by extra separator by M. Dočekal)
 
 	_key = _key.strip()
 
