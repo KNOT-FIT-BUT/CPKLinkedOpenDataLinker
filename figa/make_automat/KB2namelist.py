@@ -82,7 +82,7 @@ def get_subnames_from_parts(subname_parts):
 	subnames = set()
 	subname_all = ''
 	for subname_part in subname_parts:
-		subname_part = regex.sub(r'#[A-Za-z0-9]E?( |$)', '\g<1>', subname_part)
+		subname_part = regex.sub(r'#[A-Za-z0-9]E?( |-|–|$)', '\g<1>', subname_part)
 		subnames.add(subname_part)
 		if subname_all:
 			subname_part = ' ' + subname_part
@@ -256,8 +256,8 @@ def add_to_dictionary(_key, _nametype, _value, _type, _fields, alt_names):
 		if _type in ["person", "person:artist", "person:fictional"] and _nametype != "nick":
 			g_subnames |= Persons.get_normalized_subnames(set([_key]), True)
 	for tmp in key_inflections.copy():
-		if regex.search(r"\-\p{Lu}", tmp):
-			key_inflections.add(regex.sub(r"\-(\p{Lu})", " \g<1>", tmp)) # Payne-John Christo -> Payne John Christo
+		if regex.search(r"(?:-|–)\p{Lu}", tmp):
+			key_inflections.add(regex.sub(r"(?:-|–)(\p{Lu})", " \g<1>", tmp)) # Payne-John Christo -> Payne John Christo
 
 	# All following transformatios will be performed for each of inflection variant of key_inflection
 	for key_inflection in key_inflections:
@@ -353,8 +353,10 @@ def add_to_dictionary(_key, _nametype, _value, _type, _fields, alt_names):
 				new_key_inflection = regex.sub(r"(\p{Lu}\.)%s?(?=\p{Lu}\p{L}+)" % re_flag_names, "\g<1> ", new_key_inflection) # J.M.W.Turner -> J.M.W. Turner
 				add(new_key_inflection, _value, _type)
 				add(regex.sub(r"\.%s" % re_flag_names, "", new_key_inflection), _value, _type) # J.M.W. Turner -> JMW Turner
-			if "-" in key_inflection:
+			if "-" in key_inflection: # 0x45
 				add('-'.join(word[0].upper() + word[1:] if len(word) > 1 else word for word in key_inflection.split("-")), _value, _type) # Mao Ce-tung -> Mao Ce-Tung
+			if "–" in key_inflection: # 0x96
+				add('–'.join(word[0].upper() + word[1:] if len(word) > 1 else word for word in key_inflection.split("–")), _value, _type) # Mao Ce-tung -> Mao Ce–Tung
 			if "ì" in key_inflection:
 				add(regex.sub("ì", "í", key_inflection), _value, _type) # Melozzo da Forlì -> Melozzo da Forlí
 
@@ -399,7 +401,7 @@ def add(_key, _value, _type):
 	 _type : the type prefix for a given entity
 	"""
 
-	_key = regex.sub(r"#[A-Za-z0-9]E?(?= |,|\.|-|$)", "", _key)
+	_key = regex.sub(r"#[A-Za-z0-9]E?(?= |,|\.|-|–|$)", "", _key)
 
 	_key = _key.strip()
 
@@ -561,7 +563,7 @@ if __name__ == "__main__":
 				dictionary[subname] = set()
 			if 'N' not in dictionary[subname]:
 				dictionary[subname].add('N')
-
+		"""
 		# Pronouns with first lower and first upper with 'N'
 		pronouns = ["on", "ho", "mu", "něm", "jím", "ona", "jí", "ní"]
 		if (not args.lowercase):
@@ -577,7 +579,7 @@ if __name__ == "__main__":
 			if nat not in dictionary:
 				dictionary[nat] = set()
 			dictionary[nat].add('N')
-
+		"""
 	# printing the output
 	for item in dictionary.items():
 		print(item[0] + "\t" + ";".join(item[1]))
