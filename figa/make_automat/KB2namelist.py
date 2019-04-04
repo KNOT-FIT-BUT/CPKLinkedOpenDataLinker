@@ -402,6 +402,7 @@ def add(_key, _value, _type):
 	"""
 
 	_key = regex.sub(r"#[A-Za-z0-9]E?(?= |,|\.|-|–|$)", "", _key)
+	_key = regex.sub(r"#L(?=[0-9])", "", _key) # temporary fix for mountains like K#L12, K#L2, ... (will be solved by extra separator by M. Dočekal)
 
 	_key = _key.strip()
 
@@ -563,7 +564,7 @@ if __name__ == "__main__":
 				dictionary[subname] = set()
 			if 'N' not in dictionary[subname]:
 				dictionary[subname].add('N')
-		"""
+
 		# Pronouns with first lower and first upper with 'N'
 		pronouns = ["on", "ho", "mu", "něm", "jím", "ona", "jí", "ní"]
 		if (not args.lowercase):
@@ -579,7 +580,7 @@ if __name__ == "__main__":
 			if nat not in dictionary:
 				dictionary[nat] = set()
 			dictionary[nat].add('N')
-		"""
+
 	# printing the output
 	for item in dictionary.items():
 		print(item[0] + "\t" + ";".join(item[1]))
