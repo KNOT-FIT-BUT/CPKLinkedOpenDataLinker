@@ -15,6 +15,9 @@ import collections
 
 from typing import Set, Dict, Tuple
 import string
+import math
+import logging
+import sys
 
 class MARule(collections.Mapping):
     """
@@ -44,8 +47,29 @@ class MARule(collections.Mapping):
     def __str__(self):
         return str(self._d)
     
-    def __rept__(self):
+    def __repr__(self):
         return repr(self._d)
+    
+    def sameExcept(self, other, exceptCat:Set[MorphCategories]=set()):
+        """
+        Porovnává aktuální pravidlo s nějakým jiným zdali je stejné až na dané morfologické kategorie.
+        
+        :param other: Pravidlo pro porovnání.
+        :type other: MARule
+        :param exceptCat: Kategorie, které nejsou zohledňovány při kontrole na shodu.
+        :type exceptCat: Set[MorphCategories]
+        """
+        try:
+            for morphCat, morphCatVal in self.items():
+                if morphCat not in exceptCat and other[morphCat]!=morphCatVal:
+                    #nemá stejnou hodnotu pro morphcat a nejedná se o pád
+                    return False
+        except KeyError:
+            #asi nemá morphCat vůbec
+            return False
+        
+        return True
+        
     
     @property
     def lntrf(self):
@@ -65,63 +89,78 @@ class MARule(collections.Mapping):
         Ve formátu lntrf. Bez poznámky
         """
         pos=self[MorphCategories.POS].lntrf
-        #pořadí pro ify je voleno dle předpokládané četnosti
-        if self[MorphCategories.POS]==POS.NOUN:
-            #podstané jméno zjistím rod, číslo, pád
-            return pos+self[MorphCategories.GENDER].lntrf \
-                +self[MorphCategories.NUMBER].lntrf \
-                +self[MorphCategories.CASE].lntrf
-                
-        if self[MorphCategories.POS]==POS.ADJECTIVE:
-            #přídavné jméno zjistím negaci,rod, číslo, pád, stupeň
-            return pos+self[MorphCategories.NEGATION].lntrf \
-                +self[MorphCategories.GENDER].lntrf \
-                +self[MorphCategories.NUMBER].lntrf \
-                +self[MorphCategories.CASE].lntrf \
-                +self[MorphCategories.DEGREE_OF_COMPARISON].lntrf
-                
-        if self[MorphCategories.POS]==POS.PREPOSITION:
-            #předložka pád
-            return pos
-        
-        if self[MorphCategories.POS]==POS.PREPOSITION_M:
-            #předložka M pád
-            return pos
-                
-        if self[MorphCategories.POS]==POS.NUMERAL:
-            #číslovka rod, číslo, pád
-            return pos+self[MorphCategories.GENDER].lntrf \
-                +self[MorphCategories.NUMBER].lntrf \
-                +self[MorphCategories.CASE].lntrf
-                
-        if self[MorphCategories.POS]==POS.PRONOUN:
-            #zájméno zjistime rod, číslo, pád
-            return pos+self[MorphCategories.GENDER].lntrf \
-                +self[MorphCategories.NUMBER].lntrf \
-                +self[MorphCategories.CASE].lntrf
-                
-        if self[MorphCategories.POS]==POS.VERB:
-            #sloveso negace, osoba, číslo
-            return pos+self[MorphCategories.NEGATION].lntrf \
-                +self[MorphCategories.PERSON].lntrf \
-                +self[MorphCategories.NUMBER].lntrf
-                
-        if self[MorphCategories.POS]==POS.ADVERB:
-            #příslovce negace stupeň
-            return pos+self[MorphCategories.NEGATION].lntrf \
-                +self[MorphCategories.DEGREE_OF_COMPARISON].lntrf
-        
-        if self[MorphCategories.POS]==POS.CONJUNCTION:
-            #spojka, nic
-            return pos
-        
-        if self[MorphCategories.POS]==POS.PARTICLE:
-            #částice, nic
-            return pos
-        if self[MorphCategories.POS]==POS.INTERJECTION:
-            #citoslovce, nic
-            return pos
-
+        try:
+            #pořadí pro ify je voleno dle předpokládané četnosti
+            if self[MorphCategories.POS]==POS.NOUN:
+                #podstané jméno zjistím rod, číslo, pád
+                return pos+self[MorphCategories.GENDER].lntrf \
+                    +self[MorphCategories.NUMBER].lntrf \
+                    +self[MorphCategories.CASE].lntrf
+                    
+            if self[MorphCategories.POS]==POS.ADJECTIVE:
+                #přídavné jméno zjistím negaci,rod, číslo, pád, stupeň
+                return pos+self[MorphCategories.NEGATION].lntrf \
+                    +self[MorphCategories.GENDER].lntrf \
+                    +self[MorphCategories.NUMBER].lntrf \
+                    +self[MorphCategories.CASE].lntrf \
+                    +self[MorphCategories.DEGREE_OF_COMPARISON].lntrf
+                    
+            if self[MorphCategories.POS]==POS.PREPOSITION:
+                #předložka pád
+                return pos
+            
+            if self[MorphCategories.POS]==POS.PREPOSITION_M:
+                #předložka M pád
+                return pos
+                    
+            if self[MorphCategories.POS]==POS.NUMERAL:
+                #číslovka rod, číslo, pád
+                return pos+self[MorphCategories.GENDER].lntrf \
+                    +self[MorphCategories.NUMBER].lntrf \
+                    +self[MorphCategories.CASE].lntrf
+                    
+            if self[MorphCategories.POS]==POS.PRONOUN:
+                #zájméno zjistime rod, číslo, pád
+                return pos+self[MorphCategories.GENDER].lntrf \
+                    +self[MorphCategories.NUMBER].lntrf \
+                    +self[MorphCategories.CASE].lntrf
+                    
+            if self[MorphCategories.POS]==POS.VERB:
+                #sloveso negace, osoba, číslo
+                return pos+self[MorphCategories.NEGATION].lntrf \
+                    +self[MorphCategories.PERSON].lntrf \
+                    +self[MorphCategories.NUMBER].lntrf
+                    
+            if self[MorphCategories.POS]==POS.ADVERB:
+                #příslovce negace stupeň
+                return pos+self[MorphCategories.NEGATION].lntrf \
+                    +self[MorphCategories.DEGREE_OF_COMPARISON].lntrf
+            
+            if self[MorphCategories.POS]==POS.CONJUNCTION:
+                #spojka, nic
+                return pos
+            
+            if self[MorphCategories.POS]==POS.PARTICLE:
+                #částice, nic
+                return pos
+            if self[MorphCategories.POS]==POS.INTERJECTION:
+                #citoslovce, nic
+                return pos
+        except KeyError:
+            #zdá se, že nevyhovuje tradičnímu rozvržení
+            #zkusíme tedy co všechno má
+            res=pos
+            
+            for x in [MorphCategories.NEGATION,MorphCategories.GENDER,MorphCategories.PERSON,\
+                      MorphCategories.NUMBER,MorphCategories.CASE,MorphCategories.NEGATION,\
+                      MorphCategories.DEGREE_OF_COMPARISON]:
+                try:
+                    res+=self[x].lntrf
+                except KeyError:
+                    #tohle ne zkusíme další
+                    pass
+            
+            return res
 
 class MorphoAnalyze(ABC):
     """
@@ -231,9 +270,6 @@ class MorphoAnalyzerLibma(object):
     .. _ma: http://knot.fit.vutbr.cz/wiki/index.php/Morfologický_slovník_a_morfologický_analyzátor_pro_češtinu
     
     """
-    
-    MAX_NUMBER_OF_WORDS_PASSED_TO_MA_AT_ONCE=10000
-    
     class MAWordGroup():
         """
         Třída reprezentující skupinu slov k nějakému slovu.
@@ -335,16 +371,35 @@ class MorphoAnalyzerLibma(object):
             """
             self._word = value    
             
-        def addMorph(self, tagRule, morph):
+        def addMorph(self, tagRule, morph, relevant=False):
             """
             Přidání tvaru.
+            !!!NA ZÁKLADĚ POKYNŮ JSOU NEJSOU PŘÍJMÁNY VŠECHNY HOVOROVÉ TVARY
             
             :param tagRule: Značko pravidlo pro tvar (příklad k1gFnSc7)
             :type tagRule: str
             :param morph: Tvar slova.
             :type morph: str
+            :param relevant: Pokud je true, tak nepřídá daný tvar, který nevyhovuje přidaným pravidlům.
+                Tvar nevyhovuje přidaným pravidlům ve skupině, máli jiné hodnoty morfologických kategorií až na
+                CASE (pád). Chceme získávat všechny relevantní tvary.
+               
+            :type relevant: bool
             """
-            self._morphs.append((self.convTagRule(tagRule), morph))
+            rule=self.convTagRule(tagRule)
+            if MorphCategories.STYLISTIC_FLAG in rule and rule[MorphCategories.STYLISTIC_FLAG]==StylisticFlag.COLLOQUIALLY:
+                #nechceme hovorové
+                return
+            
+            if relevant:
+                #uživatel chce přidat jen relevantní
+                for r in self._tagRules:
+                    if r.sameExcept(rule, set([MorphCategories.CASE, MorphCategories.STYLISTIC_FLAG])):
+                        #je stejné jako alespoň jedno pravidlo
+                        self._morphs.append((rule, morph))
+                        return
+            else:
+                self._morphs.append((rule, morph))
 
         def getMorphs(self, valFilter: Set[MorphCategory] =set(), notValFilter: Set[MorphCategory] =set())->Set[Tuple[MARule,str]]:
             """
@@ -434,6 +489,8 @@ class MorphoAnalyzerLibma(object):
             """
             Přidání značko pravidla, které již bylo zkonvertováno pomocí convTagRule.
             
+            NEPŘÍJMÁ StylisticFlag.COLLOQUIALLY
+            
             :param tagRule: Značko pravidlo 
             :type tagRule: MARule
             """
@@ -443,21 +500,24 @@ class MorphoAnalyzerLibma(object):
                 if Flag.GENERAL_WORD in self._flags:
                     #pokud ano, tak musíme tento flag odstranit.
                     self._flags.remove(Flag.GENERAL_WORD)
-                    #a vrátíme impicitní
+                    #a vrátíme implicitní
                     self._flags.add(Flag.NOT_GENERAL_WORD)
                 
+            
             self._tagRules.append(tagRule)
             
         def addTagRule(self, tagRule):
             """
             Přidání značko pravidla.
             
+            NEPŘÍJMÁ StylisticFlag.COLLOQUIALLY
+            
             :param tagRule: Značko pravidlo (příklad k1gFnPc1)
             :type tagRule: str
             """
             r=self.convTagRule(tagRule)
             if r:
-                self._tagRules.append(r)
+                self.addTagRuleConv(r)
             
         def getAll(self, valFilter: Set[MorphCategory] =set(), notValFilter: Set[MorphCategory] =set()) -> Dict[MorphCategories,Set[MorphCategory]]:
             """
@@ -732,31 +792,12 @@ class MorphoAnalyzerLibma(object):
         #vytvoříme novou prázdnou databázi slov
         self._wordDatabase={}
         
-        #získání informací o slovech
-        wordCnt=0
-        strForMa="" #řetězec, který bude odeslán na vstup ma
-        for word in words:
-            #postupujeme po částech, protože vznikaly problémy při přeposílání velkého množství slov.
-            strForMa+=word+"\n"
-            wordCnt+=1
-            if wordCnt==len(words) or wordCnt%self.MAX_NUMBER_OF_WORDS_PASSED_TO_MA_AT_ONCE==0:
-                p = Popen([pathToMa, "-F", "-m", "-n"], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-                
-                
-                output, _ = p.communicate(str.encode(strForMa)) #vrací stdout a stderr
-                #zkontrolujeme návratový kód
-                rc = p.returncode
-                
-                if rc!=0:
-                    #selhání analyzátoru
-                    raise MorphoAnalyzerException(ErrorMessenger.CODE_MA_FAILURE)
-                
-                self._parseMaOutput(output.decode())
-                
-                #vyčistit pro další část
-                strForMa=""
-            
+        self._pathToMa=pathToMa
         
+        #získání informací o slovech
+        words=list(words)
+        self.__commWithMA(words)
+
         #přidáme ke slovům von, da a de
         #analýzu, že se jedná o předložky za nimiž se slova ohýbají
         for w in ["von", "da", "de"]:
@@ -797,6 +838,47 @@ class MorphoAnalyzerLibma(object):
             except KeyError:
                 pass
 
+    def __commWithMA(self, words):
+        """
+        Pošle ma slova, která mají být analyzována.
+        
+        :param words: Slova pro analýzu
+        :type words:List[str]
+        :raise MorphoAnalyzerException: Chyba analyzátoru.
+        """
+        
+        
+        p = Popen([self._pathToMa, "-F", "-m", "-n"], stdin=PIPE, stdout=PIPE, stderr=None)
+                
+        output, _ = p.communicate(str.encode(("\n".join(words))+"\n")) #vrací stdout a stderr
+        
+        #zkontrolujeme návratový kód
+        if p.returncode!=0:
+            #selhání analyzátoru
+            raise MorphoAnalyzerException(ErrorMessenger.CODE_MA_FAILURE)
+        
+
+        retWords=self._parseMaOutput(output.decode())
+
+        if retWords!=len(words):
+
+            #nemáme všechna slova
+            #zřejmě byl pro komunikaci výstup příliš velký pokusíme se poslat méně slov
+            if len(words)==1:
+                #Níž nelze. Vynecháme toto slovo. Není pravděpodobné, že by jedno slovo mělo tak příliš velký výstup
+                #zřejmě se spíše jedná o nevhodné slovo pro ma. Jako je například slovo . (tečka).
+                return
+            
+            origCnt=len(words)
+            words=words[retWords:]#zbavíme se již zpracovaných
+            
+            partSize=math.ceil(len(words)/2)
+            logging.info("\tPři komunikaci s ma došlo ke ztrátě slov (odesláno: "+str(origCnt)+", přijato: "+str(retWords)+"). Pokusím se o komunikaci znovu s menším počtem slov: "+\
+                         str(origCnt)+" -> "+str(partSize)+".")
+            for offset in range(0, len(words), partSize):
+                self.__commWithMA(words[offset:offset+partSize])
+            
+        
         
     def _parseMaOutput(self, output):
         """
@@ -804,13 +886,22 @@ class MorphoAnalyzerLibma(object):
         
         :param output: Výstup z analyzátoru.
         :type output: str
+        :return: Počet získaných slov. (i nezpracovaných ma>--not found)
+        :rtype: int
         """
-        actWordGroup=None   #obsahuje data k aktuálně parsované skupině
 
+        actWordGroup=None   #obsahuje data k aktuálně parsované skupině
+        cntUnWords=0
+        wordsInDBAtStart=len(self._wordDatabase)
         for line in output.splitlines():
+            if line=="ma>--not found":
+                #máme další slovo, ale nezpracované
+                cntUnWords+=1
+                continue
+            
             #rozdělení řádku
             parts=line.strip().split()
-            
+                
             if parts[0][-3:]=="<s>":
                 #začínáme číst novou skupinu slova
                 #<s> vstupní slovo (vzor 1)
@@ -857,7 +948,10 @@ class MorphoAnalyzerLibma(object):
                 
             elif parts[0][:3]=="<f>":
                 #Přidání tvaru slova
-                actWordGroup.addMorph((parts[0][3:])[1:-1], parts[1])
+                #pouze pokud je relevantní k znočko pravidlům, které sedí na dané slovo.
+                #Tento požadavek si můžeme dovolit, jelikoř v tuto dobu by měly být zpracovány
+                #všechny <c> řádky.
+                actWordGroup.addMorph((parts[0][3:])[1:-1], parts[1], True)
                 
         
         #byla předešlá skupina k něčemu dobrá?
@@ -865,7 +959,8 @@ class MorphoAnalyzerLibma(object):
             #nebyla
             self._wordDatabase[actWordGroup.word].delGroup(actWordGroup)
             
-            
+        return cntUnWords+len(self._wordDatabase)-wordsInDBAtStart
+    
     def analyze(self, word):
         """
         Získání kompletních znalostí o slově. Slovo by mělo být 

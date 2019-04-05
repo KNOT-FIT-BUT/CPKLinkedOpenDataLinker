@@ -1,8 +1,14 @@
 S
-S -> !T_GROUP 1{t=G,r="^.*(?<!ová)$",c=1,n=S,g=F,note?=jG} NOUN_GROUP_START PREP_GROUP !T_GROUP
-S -> !T_GROUP 1{t=S,r="^.*ová$",c=1,n=S,g=F,note?=jS} NOUN_GROUP_START PREP_GROUP !T_GROUP
-S -> !T_GROUP 2{t=G,r="^.*(?<!ová)$",c=1,n=S,g=F,note?=jG} NOUN_GROUP_START PREP_GROUP !T_GROUP	#Chceme i indiánská jména: Sedící sova
-S -> !T_GROUP 2{t=S,r="^.*ová$",c=1,n=S,g=F,note?=jS} NOUN_GROUP_START PREP_GROUP !T_GROUP
+#číslovku dovolujeme protože chceme i jména jako:
+#	1. Baronka z Aucklandu
+S -> SAINT !T_GROUP !NUMERIC  NUM(t=G) 1{t=G,r="^(?!^([sS]vatá|[sS]aint|.*ová)$).*$",c=1,n=S,g=F,note?=jG} NOUN_GROUP_START PREP_GROUP !T_GROUP
+S -> SAINT !T_GROUP !NUMERIC  NUM(t=G) 1{t=S,r="^.*ová$",c=1,n=S,g=F,note?=jS} NOUN_GROUP_START PREP_GROUP !T_GROUP
+S -> SAINT !T_GROUP !NUMERIC  NUM(t=G) 2{t=G,r="^(?!^([sS]vatá|[sS]aint|.*ová)$).*$",c=1,n=S,g=F,note?=jG} NOUN_GROUP_START PREP_GROUP !T_GROUP	#Chceme i indiánská jména: Sedící sova
+S -> SAINT !T_GROUP !NUMERIC  NUM(t=G) 2{t=S,r="^.*ová$",c=1,n=S,g=F,note?=jS} NOUN_GROUP_START PREP_GROUP !T_GROUP
+
+SAINT -> 1{t=T,r="^([sS]vatá|sS]aint)$",c=1,n=S,g=F,note?=jG} #Svatá ...
+SAINT -> ε
+
 NOUN_GROUP_START -> NOUN_GROUP
 NOUN_GROUP_START -> !NUM_ABBREVIATION_GROUP
 NOUN_GROUP_START -> ε
@@ -30,7 +36,16 @@ NOUN_GROUP_2 -> 1{t=S,c=1,n=S,g=N,note?=jS} NOUN_GROUP_3
 NOUN_GROUP_3 -> NOUN_GROUP_2
 NOUN_GROUP_3 -> ε
 
+#	1. Baronka z Aucklandu
+NUM(t) -> 4{c=1,t=L,n=S,g=M}
+NUM(t) -> ε
+!NUMERIC -> n{t=4}
+!NUMERIC -> ε
+
+#tituly a zkratky
 !T_GROUP -> t{t=T} !T_GROUP
+!T_GROUP -> a{t=A,r="^(?!^((X{1,3}(IX|IV|V?I{0,3}))|((IX|IV|I{1,3}|VI{0,3})))\.?$).*$"} !T_GROUP	#regex vylučuje římskou číslici
+!T_GROUP -> ia{t=I} !T_GROUP
 !T_GROUP -> ε
 
 !NUM_ABBREVIATION_GROUP -> r{t=R} !NUM_ABBREVIATION_GROUP_EMPTY
@@ -38,8 +53,8 @@ NOUN_GROUP_3 -> ε
 !NUM_ABBREVIATION_GROUP_EMPTY -> !NUM_ABBREVIATION_GROUP
 !NUM_ABBREVIATION_GROUP_EMPTY -> ε
 
-PREP_GROUP -> !NO_MORPH_PREP !AFTER_PREP
-PREP_GROUP -> !MORPH_PREP AFTER_PREP
+PREP_GROUP -> !7{t=7} !AFTER_PREP
+PREP_GROUP -> !7m{t=7} AFTER_PREP
 PREP_GROUP -> ε
 
 !AFTER_PREP -> 2{t=L} !AFTER_PREP_ENDING
@@ -52,14 +67,8 @@ PREP_GROUP -> ε
 
 AFTER_PREP -> 2{t=L} AFTER_PREP_ENDING
 AFTER_PREP -> 1{t=L} AFTER_PREP_ENDING
-AFTER_PREP -> !ROM_NUM AFTER_PREP_ENDING
-AFTER_PREP -> !ABBER AFTER_PREP_ENDING
-AFTER_PREP -> !CONJ AFTER_PREP_ENDING
+AFTER_PREP -> !r{t=R} AFTER_PREP_ENDING
+AFTER_PREP -> !ia{t=I} AFTER_PREP_ENDING
+AFTER_PREP -> !8{t=8} AFTER_PREP_ENDING
 AFTER_PREP_ENDING -> AFTER_PREP
 AFTER_PREP_ENDING -> ε
-
-!ABBER -> ia{t=I}
-!ROM_NUM-> r{t=R}
-!CONJ -> 8{t=8}
-!NO_MORPH_PREP -> 7{t=7}
-!MORPH_PREP -> 7m{t=7}

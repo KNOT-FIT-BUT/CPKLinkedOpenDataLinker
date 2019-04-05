@@ -82,7 +82,7 @@ def get_subnames_from_parts(subname_parts):
 	subnames = set()
 	subname_all = ''
 	for subname_part in subname_parts:
-		subname_part = regex.sub(r'#[A-Za-z0-9]E?( |$)', '\g<1>', subname_part)
+		subname_part = regex.sub(r'#[A-Za-z0-9]E?( |-|–|$)', '\g<1>', subname_part)
 		subnames.add(subname_part)
 		if subname_all:
 			subname_part = ' ' + subname_part
@@ -256,8 +256,8 @@ def add_to_dictionary(_key, _nametype, _value, _type, _fields, alt_names):
 		if _type in ["person", "person:artist", "person:fictional"] and _nametype != "nick":
 			g_subnames |= Persons.get_normalized_subnames(set([_key]), True)
 	for tmp in key_inflections.copy():
-		if regex.search(r"\-\p{Lu}", tmp):
-			key_inflections.add(regex.sub(r"\-(\p{Lu})", " \g<1>", tmp)) # Payne-John Christo -> Payne John Christo
+		if regex.search(r"(?:-|–)\p{Lu}", tmp):
+			key_inflections.add(regex.sub(r"(?:-|–)(\p{Lu})", " \g<1>", tmp)) # Payne-John Christo -> Payne John Christo
 
 	# All following transformatios will be performed for each of inflection variant of key_inflection
 	for key_inflection in key_inflections:
@@ -348,13 +348,15 @@ def add_to_dictionary(_key, _nametype, _value, _type, _fields, alt_names):
 				add(regex.sub(r"Mc(\p{Lu})", "Mc \g<1>", key_inflection), _value, _type) # McCollum -> Mc Collum
 				add(regex.sub(r"Mc (\p{Lu})", "Mc\g<1>", key_inflection), _value, _type) # Mc Collum -> McCollum
 			if "." in key_inflection:
-				new_key_inflection = regex.sub(r"(\p{Lu}\.%s?) (?=\p{Lu})" %re_flag_names, "\g<1>", key_inflection) # J. M. W. Turner -> J.M.W.Turner
+				new_key_inflection = regex.sub(r"(\p{Lu}\.)%s? (?=\p{Lu})" % re_flag_names, "\g<1>", key_inflection) # J. M. W. Turner -> J.M.W.Turner
 				add(new_key_inflection, _value, _type)
-				new_key_inflection = regex.sub(r"(\p{Lu}\.%s?)(?=\p{Lu}\p{L}+)" %re_flag_names, "\g<1> ", new_key_inflection) # J.M.W.Turner -> J.M.W. Turner
+				new_key_inflection = regex.sub(r"(\p{Lu}\.)%s?(?=\p{Lu}\p{L}+)" % re_flag_names, "\g<1> ", new_key_inflection) # J.M.W.Turner -> J.M.W. Turner
 				add(new_key_inflection, _value, _type)
-				add(regex.sub(r"\.", "", new_key_inflection), _value, _type) # J.M.W. Turner -> JMW Turner
-			if "-" in key_inflection:
+				add(regex.sub(r"\.%s" % re_flag_names, "", new_key_inflection), _value, _type) # J.M.W. Turner -> JMW Turner
+			if "-" in key_inflection: # 0x45
 				add('-'.join(word[0].upper() + word[1:] if len(word) > 1 else word for word in key_inflection.split("-")), _value, _type) # Mao Ce-tung -> Mao Ce-Tung
+			if "–" in key_inflection: # 0x96
+				add('–'.join(word[0].upper() + word[1:] if len(word) > 1 else word for word in key_inflection.split("–")), _value, _type) # Mao Ce-tung -> Mao Ce–Tung
 			if "ì" in key_inflection:
 				add(regex.sub("ì", "í", key_inflection), _value, _type) # Melozzo da Forlì -> Melozzo da Forlí
 
@@ -399,7 +401,13 @@ def add(_key, _value, _type):
 	 _type : the type prefix for a given entity
 	"""
 
-	_key = regex.sub(r"#[A-Za-z0-9]E?(?= |,|\.|-|$)", "", _key)
+	_key = regex.sub(r"#[A-Za-z0-9]E?(?= |,|\.|-|–|$)", "", _key)
+	if '\u200b' in _key:
+		add(regex.sub(r"\u200b *", ' ', _key), _value, _type) # Add new key with space instead of zero width space (including insurance against presence of multiple space due to added new one)
+		_key = regex.sub(r"#[A-Za-z0-9]+\u200b", '', _key) # Remove word mark including zero width space
+
+	_key = regex.sub(r"#L(?=[0-9])", "", _key) # temporary fix for mountains like K#L12, K#L2, ... (will be solved by extra separator by M. Dočekal)
+	_key = regex.sub(r"(?<=\.)#4", "", _key) # temporary fix for ordinals like <something> 1.#4díl, ... (will be solved by extra separator by M. Dočekal)
 
 	_key = _key.strip()
 
@@ -553,7 +561,7 @@ if __name__ == "__main__":
 			else:
 				process_other(fields, str(line_num), alternatives)
 			line_num += 1
-			gc.collect()
+		gc.collect()
 
 		# Subnames in all inflections with 'N'
 		for subname in g_subnames:

@@ -13,9 +13,9 @@ from namegenPack import Errors
 import logging
 
 from namegenPack.morpho import MorphCategories
-from namegenPack.morpho.MorphCategories import Case, StylisticFlag, POS
+from namegenPack.morpho.MorphCategories import Case, POS
 
-from typing import List, Dict
+from typing import List, Dict, Set,Tuple
 import namegenPack.Grammar
 
 from namegenPack.Word import Word, WordTypeMark
@@ -188,7 +188,7 @@ class Name(object):
     def printName(self):
         """
         Převede jméno do string. Pokud má jménu typ, tak je přidán. Jméno a typ jsou
-        odděleny tabulátorem. Pokud má jméno nějaké přídavní informace, tak je také přidá.
+        odděleny tabulátorem. Pokud má jméno nějaké přídavné informace, tak je také přidá.
         """
         
         res=str(self)
@@ -196,7 +196,7 @@ class Name(object):
             res+="\t"+str(self.type)
             
         if len(self.additionalInfo)>0:
-            res+="\t"+("\t".join(self.additionalInfo))
+            res+="\t\t"+("\t".join(self.additionalInfo))
         
         return res
 
@@ -219,6 +219,7 @@ class Name(object):
             v němž je toto jméno. Pokud je jméno ve více gramatikách nebo v žádné vrátí None.
         :rtype aTokens: (List, List) | None
         :raise Word.WordCouldntGetInfoException:Pokud se nepodařilo analyzovat nějaké slovo.
+        :raise TimeoutException: Při provádění syntaktické analýzy (pro jednou z gramatik), nad tímto jménem, došlo k timeoutu.
         """
         if self._type==self.Type.MainType.LOCATION:
             #lokace -> ponecháváme
@@ -332,19 +333,39 @@ class Name(object):
 
         actWord=""
         actSeparator=""
+        separatorOccured=False
+        
+        parsingNumeric=False     #Chceme i rozdělovat slova jako: 1.díl (Jako např. v názvu Škarez 1.díl )
 
         #Procházíme jméno a hledáme slova s jejich oddělovači.
         #Vynacháváme oddělovače na konci a začátku.
         for c in name:
             if (c.isspace() or c=='-' or c=='–' or c==','):
                 #separátor
-
+                
                 if len(actWord)>0:
                     #počáteční vynecháváme
                     actSeparator+=c
+                    separatorOccured=True 
+                    
+                parsingNumeric=False    #budeme delit tak, ci tak
             else:
                 #znak slova
-                if len(actSeparator)>0:
+                
+                if c.isnumeric():
+                    #slovo obsahuje cislici, budeme chtit pripadne delit
+                    #a pokud mame co, tak budeme delit jiz hned
+                    if len(actWord)>0 and not parsingNumeric:
+                        #pred cislici byly nejake znaky (ne cislice)
+                        separatorOccured=True 
+                        
+                    parsingNumeric=True
+                elif parsingNumeric and c!=".":
+                    #budeme delit
+                    separatorOccured=True
+                    parsingNumeric=False
+
+                if separatorOccured:
                     #již se má načítat další slovo
                     #uložíme to staré a příslušný separátor
                     words.append(actWord)
@@ -352,13 +373,16 @@ class Name(object):
 
                     separators.append(actSeparator)
                     actSeparator=""
+                    separatorOccured=False
 
+                
+                    
                 actWord+=c
 
 
         if len(actWord)>0:
             words.append(actWord)
-
+        
         return (words, separators)
 
 
@@ -453,16 +477,20 @@ class Name(object):
 
         return types
 
-    def genMorphs(self, analyzedTokens:List[namegenPack.Grammar.AnalyzedToken]):
+    def genMorphs(self, analyzedTokens:List[namegenPack.Grammar.AnalyzedToken], missingCaseToken:Set[Tuple[namegenPack.Grammar.AnalyzedToken,Case]]=None):
         """
         Na základě slovům odpovídajících analyzovaných tokenů ve jméně vygeneruje tvary jména.
+        Pokusí se vygenerovat všech sedm pádů, pokud nebude možné nějaké vygenerovat vrátí alespoň ty, které
+        se mu vygenerovat povedly.
 
         :param analyzedTokens: Analyzované tokeny, získané ze syntaktické analýzy tohoto jména.
         :type analyzedTokens: List[namegenPack.Grammar.AnalyzedToken]
+        :param missingCaseToken: Volitelný atribut, který lze použít pro získání tokenú/slov, u kterých se nepodařilo
+            získat tvar v nějakém z pádů.
+        :type missingCaseToken: Set[Tuple[AnalyzedToken, Case]]
         :return:  Vygenerované tvary.
-        :rtype: list(str)
+        :rtype: list[str]
         :raise Word.WordNoMorphsException: Pokud se nepodaří získat tvary u nějakého slova.
-        :raise Word.WordMissingCaseException: Pokud chybí nějaký pád.
         :raise WordCouldntGetInfoException: Vyjímka symbolizující, že se nepovedlo získat mluvnické kategorie ke slovu.
         """
 
@@ -499,32 +527,45 @@ class Name(object):
                 if aToken.morph and isinstance(genMorphsForWords[i], set):
                     #ohýbáme
                     notMatch=True
+                    
+                    morphsThatWeAlreadyHaves=set()
                     for maRule, wordMorph in genMorphsForWords[i]:
                         #najdeme tvar slova pro daný pád
                         try:
                             if maRule[MorphCategories.MorphCategories.CASE]==c:
+                                
+                                actMorph=wordMorph+"["+maRule.lntrfWithoutNote+"]"
+                                wordType=aToken.matchingTerminal.getAttribute(namegenPack.Grammar.Terminal.Attribute.Type.WORD_TYPE)
+                                if wordType!=WordTypeMark.UNKNOWN:
+                                    actMorph+="#"+str(wordType.value)
+                                    
+                                if actMorph in morphsThatWeAlreadyHaves:
+                                    #Díky tomu, že nezohledňujeme poznámku při výpisu,
+                                    #tak můžeme dostávat tvary, které vypadají totožně a není
+                                    #nutné je tedy vypisovat.
+                                    continue
+                                else:
+                                    morphsThatWeAlreadyHaves.add(actMorph)
+                                    
                                 if not notMatch:
                                     #můžeme mít více tvarů daného slova
                                     #toto je jeden z dalších tvarů
                                     morph += "/"
-                                morph+=wordMorph+"["+maRule.lntrfWithoutNote+"]"
-                                wordType=aToken.matchingTerminal.getAttribute(namegenPack.Grammar.Terminal.Attribute.Type.TYPE)
-                                if wordType!=WordTypeMark.UNKNOWN:
-                                    morph+="#"+str(wordType.value)
-
+                                morph+=actMorph
+                                
                                 notMatch=False
+                                
+                                
                         except KeyError:
                             #pravděpodobně nemá pád vůbec
                             pass
 
-                    if notMatch:
+                    if notMatch and missingCaseToken is not None:
                         #nepovedlo se získat některý pád
-
-                        raise Word.WordMissingCaseException(word, Errors.ErrorMessenger.CODE_WORD_MISSING_MORF_FOR_CASE,\
-                                    Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_WORD_MISSING_MORF_FOR_CASE)+"\t"+str(c.value)+"\t"+str(word))
+                        missingCaseToken.add((aToken, c))
                 else:
                     #neohýbáme
-                    morph+=str(word)+"#"+str(aToken.matchingTerminal.getAttribute(namegenPack.Grammar.Terminal.Attribute.Type.TYPE).value)
+                    morph+=str(word)+"#"+str(aToken.matchingTerminal.getAttribute(namegenPack.Grammar.Terminal.Attribute.Type.WORD_TYPE).value)
                     if aToken.token.type==Token.Type.ANALYZE_UNKNOWN:
                         morph+="E"
                 #přidání oddělovače slov
@@ -532,7 +573,8 @@ class Name(object):
                     morph+=self._separators[sepIndex]
                 sepIndex+=1
 
-            morphs.append(morph)
+            if len(morph)>0:
+                morphs.append(morph)
 
         return morphs
 
@@ -547,11 +589,11 @@ class Name(object):
         :param analyzedTokens: Analyzované tokeny, získané ze syntaktické analýzy tohoto jména.
         :type analyzedTokens: List[namegenPack.Grammar.AnalyzedToken]
         :return: List s vybranými slovy a příslušnými značko pravidly.
-        :rtype: List[Touple[Word, Set[MARule]]]
+        :rtype: List[Tuple[Word, Set[MARule]]]
         """
         selection=[]
         for aToken in analyzedTokens:
-            if aToken.matchingTerminal.getAttribute(namegenPack.Grammar.Terminal.Attribute.Type.TYPE).value==wordType:
+            if aToken.matchingTerminal.getAttribute(namegenPack.Grammar.Terminal.Attribute.Type.WORD_TYPE).value==wordType:
 
                 #získáme příslušná pravidla
                 cateFilters=aToken.morphCategories    #podmínky na původní slovo
@@ -633,31 +675,43 @@ class NameReader(object):
         """
         return self._errorCnt
 
-    def allWords(self, stringRep=False):
+    def allWords(self, stringRep=False, alnumCheck=False):
         """
         Slova vyskytující se ve všech jménech.
 
         :param stringRep: True v str reprezentaci. False jako Word objekt.
         :type stringRep: bool
+        :param alnumCheck: Vybere jen ta slova, která obsahují aspoň jeden alfanumerický znak.
+        :type alnumCheck: bool
         :return Množina všech slov ve jménech.
         :rtype: Set[Word] | Set[str]
         """
         words=set()
         if stringRep:
-            for name in self.names:
-                for w in name:
-                    words.add(str(w))
+            if alnumCheck:
+                for name in self.names:
+                    for w in name:
+                        st=str(w)
+                        if any(s.isalnum() for s in st):
+                            words.add(st)
+            else:
+                for name in self.names:
+                    for w in name:
+                        words.add(str(w))
         else:
-            for name in self.names:
-                for w in name:
-                    words.add(w)
-
+            if alnumCheck:
+                for name in self.names:
+                    for w in name:
+                        if any(s.isalnum() for s in str(w)):
+                            words.add(w)
+            else:
+                for name in self.names:
+                    for w in name:
+                        words.add(w)
         return words
 
     def __iter__(self):
         """
         Iterace přes všechna jména.
         """
-
-        for name in self.names:
-            yield name
+        return iter(self.names)
