@@ -1656,12 +1656,13 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
 
     # omitting entities without a sense
     if entities_and_dates:
-        if not print_all:
+        if not (print_all or print_score):
             entities_and_dates = [e for e in entities_and_dates if isinstance(e, dates.Date) or e.has_preferred_sense() or e.is_name]
         else:
-            for e in entities_and_dates:
-                if isinstance(e, Entity):
-                    e.set_preferred_sense(None)
+            if print_all:
+                for e in entities_and_dates:
+                    if isinstance(e, Entity):
+                        e.set_preferred_sense(None)
             entities_and_dates = [e for e in entities_and_dates if isinstance(e, dates.Date) or (e.is_coreference and e.partial_match_senses) or (not e.is_coreference and e.senses) or e.is_name]
     debugChangesInEntities(entities_and_dates, "omitting entities without a sense")
 
