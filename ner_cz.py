@@ -1605,7 +1605,7 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
         elif e.senses or e.partial_match_senses or e.source.lower() in PRONOUNS:
             entities.append(e)
 
-    debugChangesInEntities(entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
+    debugChangesInEntities(entities, "removing entities without any sense")
 
     # searches for dates and intervals in the input
     dates_and_intervals = dates.find_dates(input_string_in_unicode, split_interval=split_interval)
@@ -1630,6 +1630,7 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
 
     # disambiguates without context
     [e.disambiguate_without_context() for e in entities]
+    debugChangesInEntities(entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
 
     paragraphs = offsets_of_paragraphs(input_string_in_unicode)
     context = Context(entities_and_dates, kb, paragraphs, nationalities)
@@ -1643,15 +1644,17 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
     #name_coreferences = [e for e in entities if e.source.lower() not in PRONOUNS]
     #resolve_coreferences(name_coreferences, context, print_all, register) # Zde se ověřuje, zda-li části jmen jsou odkazy nebo samostatné entity.
     resolve_coreferences(entities, context, print_all, register)
+    debugChangesInEntities(entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
 
     # updating entities_and_dates
     entities_and_dates = [e for e in entities_and_dates if isinstance(e, dates.Date) or e in entities]
+    debugChangesInEntities(entities_and_dates, "updating entities_and_dates")
 
     # finding unknown names
     if find_names:
         add_unknown_names(kb, entities_and_dates, input_string, input_string_in_unicode, register)
 
-    # omitting entities whithout a sense
+    # omitting entities without a sense
     if entities_and_dates:
         if not print_all:
             entities_and_dates = [e for e in entities_and_dates if isinstance(e, dates.Date) or e.has_preferred_sense() or e.is_name]
@@ -1660,6 +1663,7 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
                 if isinstance(e, Entity):
                     e.set_preferred_sense(None)
             entities_and_dates = [e for e in entities_and_dates if isinstance(e, dates.Date) or (e.is_coreference and e.partial_match_senses) or (not e.is_coreference and e.senses) or e.is_name]
+    debugChangesInEntities(entities_and_dates, "omitting entities without a sense")
 
     if print_score:
         global display_entity_score
