@@ -149,6 +149,9 @@ def get_KB_names_ntypes_for(_fields):
 	str_aliases = kb_struct.get_data_for(_fields, 'ALIASES')
 	str_aliases = regex.sub(r"#lang=[^#|]*", "", str_aliases)
 
+	# Assign redirects also as aliases
+	aliases = str_aliases.split(KB_MULTIVALUE_DELIM) + kb_struct.get_data_for(_fields, 'REDIRECTS').split(KB_MULTIVALUE_DELIM)
+
 	names[str_name] = None
 	for alias in str_aliases.split(KB_MULTIVALUE_DELIM):
 		ntype = regex.search(r"#ntype=([^#|]*)", alias)
