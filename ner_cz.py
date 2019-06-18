@@ -1566,7 +1566,9 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
             global debug_last_status_of_entities
             if "debug_last_status_of_entities" in globals():
                 new_status_of_entities = [e+"\n" for e in map(str, sorted(entities, key=lambda ent: ent.start_offset))]
-                print_dbg_en(responsible_line, "".join(difflib.unified_diff(debug_last_status_of_entities, new_status_of_entities, fromfile='before', tofile='after', n=0))[:-1], delim="\n", stack_num=2)
+                diff = "".join(difflib.unified_diff(debug_last_status_of_entities, new_status_of_entities, fromfile='before', tofile='after', n=0))[:-1]
+                if diff:
+                    print_dbg_en(responsible_line, diff, delim="\n", stack_num=2)
                 debug_last_status_of_entities = new_status_of_entities
             else:
                 debug_last_status_of_entities = [e+"\n" for e in map(str, sorted(entities, key=lambda ent: ent.start_offset))]
