@@ -1540,7 +1540,7 @@ def remove_shorter_entities(entities):
             new_entities.append(e)
     return new_entities
 
-def recognize(kb, input_string, print_all=False, print_result=True, print_score=False, lowercase=False, remove=False, split_interval=True, find_names=False):
+def recognize(kb, input_string, print_all=False, print_result=True, print_score=False, lowercase=False, remove=False, split_interval=True, find_names=False, entities_overlap=False):
     """
     Prints a list of entities found in input_string.
 
@@ -1586,7 +1586,7 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
     global_senses = set()
 
     # getting entities from figa
-    figa_entities = get_entities_from_figa(kb, input_string, input_string_in_unicode, lowercase, global_senses, register)
+    figa_entities = get_entities_from_figa(kb, input_string, input_string_in_unicode, lowercase, global_senses, register, en_overlap=entities_overlap)
     debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
 
     # retaining only possible coreferences for each entity
@@ -1688,6 +1688,7 @@ def main():
     parser.add_argument('-r', '--remove-accent', action='store_true', default=False, help="Removes accent in input.")
     parser.add_argument('-l', '--lowercase', action='store_true', default=False, help="Changes all characters in input to the lowercase characters.")
     parser.add_argument('-n', '--names', action='store_true', default=False, help="Recognizes and prints all names with start and end offsets.")
+    parser.add_argument('-o', '--overlap', action='store_true', default=False, help="Enable overlapping of entities in output from Figa.")
     parser.add_argument("--own_kb_daemon", action="store_true", dest="own_kb_daemon", help=("Run own KB daemon although another already running."))
 
     arguments = parser.parse_args()
@@ -1738,7 +1739,7 @@ def main():
             else:
                 input_string = sys.stdin.read()
             input_string = input_string.strip()
-            recognize(kb, input_string, print_all=arguments.all, print_score=arguments.score, lowercase=arguments.lowercase, remove=arguments.remove_accent, find_names=arguments.names)
+            recognize(kb, input_string, print_all=arguments.all, print_score=arguments.score, lowercase=arguments.lowercase, remove=arguments.remove_accent, find_names=arguments.names, entities_overlap=arguments.overlap)
     finally:
         kb.end()
 
