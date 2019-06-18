@@ -1688,8 +1688,13 @@ def main():
     parser.add_argument('-l', '--lowercase', action='store_true', default=False, help="Changes all characters in input to the lowercase characters.")
     parser.add_argument('-n', '--names', action='store_true', default=False, help="Recognizes and prints all names with start and end offsets.")
     parser.add_argument("--own_kb_daemon", action="store_true", dest="own_kb_daemon", help=("Run own KB daemon although another already running."))
+    parser.add_argument("--debug", action="store_true", help="Enable debugging reports.")
 
     arguments = parser.parse_args()
+    
+    if not debug.DEBUG_EN and arguments.debug:
+        debug.DEBUG_EN = True
+    
     # allowed tokens for daemon mode
     tokens = set(["NER_NEW_FILE", "NER_END", "NER_NEW_FILE_ALL", "NER_END_ALL", "NER_NEW_FILE_SCORE", "NER_END_SCORE", "NER_NEW_FILE_NAMES", "NER_END_NAMES"])
 
