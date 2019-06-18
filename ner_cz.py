@@ -1483,7 +1483,7 @@ def parseFigaOutput(figa_output):
 seek_names = None
 output = None
 
-def get_entities_from_figa(kb, input_string, input_string_in_unicode, lowercase, global_senses, register):
+def get_entities_from_figa(kb, input_string, input_string_in_unicode, lowercase, global_senses, register, en_overlap=True):
     """ Returns the list of Entity objects from figa. """ # TODO: Možná by nebylo od věci toto zapouzdřit do třídy jako v "get_entities.py".
     assert isinstance(kb, ner_knowledge_base.KnowledgeBaseCZ)
     assert isinstance(input_string, str)
@@ -1491,12 +1491,13 @@ def get_entities_from_figa(kb, input_string, input_string_in_unicode, lowercase,
     assert isinstance(lowercase, bool)
     assert isinstance(global_senses, set)
     assert isinstance(register, EntityRegister)
+    assert isinstance(en_overlap, bool)
 
     global seek_names
     global output
 
     if not seek_names:
-        seek_names = figa.marker()
+        seek_names = figa.marker(over=en_overlap)
 
         lower = ""
         if lowercase:
