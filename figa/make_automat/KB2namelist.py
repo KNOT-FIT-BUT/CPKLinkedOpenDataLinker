@@ -149,6 +149,9 @@ def get_KB_names_ntypes_for(_fields):
 	str_aliases = kb_struct.get_data_for(_fields, 'ALIASES')
 	str_aliases = regex.sub(r"#lang=[^#|]*", "", str_aliases)
 
+	# Assign redirects also as aliases
+	aliases = str_aliases.split(KB_MULTIVALUE_DELIM) + kb_struct.get_data_for(_fields, 'REDIRECTS').split(KB_MULTIVALUE_DELIM)
+
 	names[str_name] = None
 	for alias in str_aliases.split(KB_MULTIVALUE_DELIM):
 		ntype = regex.search(r"#ntype=([^#|]*)", alias)
@@ -455,7 +458,7 @@ def process_person_common(person_type, _fields, _line_num, alt_names, confidence
 
 	for n, t in aliases.items():
 		length = n.count(" ") + 1
-		if length >= 2 or (n in word_freq and word_freq[n] > 0.5) or ((n[:1].lower() + n[1:]) not in word_freq):
+		if length >= 2 or is_capital_dominant(n):
 			add_to_dictionary(n, t, _line_num, person_type, _fields, alt_names)
 
 		if confidence >= confidence_threshold:
@@ -463,7 +466,12 @@ def process_person_common(person_type, _fields, _line_num, alt_names, confidence
 			unwanted_match = UNWANTED_MATCH.search(name)
 			if surname_match and not unwanted_match:
 				surname = surname_match.group(0)
-				add_to_dictionary(surname, t, _line_num, person_type, _fields, alt_names)
+				if is_capital_dominant(surname):
+					add_to_dictionary(surname, t, _line_num, person_type, _fields, alt_names)
+
+
+def is_capital_dominant(name):
+	return (name in word_freq and word_freq[name] > 0.5) or ((name[:1].lower() + name[1:]) not in word_freq)
 
 
 def process_other(_fields, _line_num, alt_names):

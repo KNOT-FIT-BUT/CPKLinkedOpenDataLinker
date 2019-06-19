@@ -1567,7 +1567,9 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
             global debug_last_status_of_entities
             if "debug_last_status_of_entities" in globals():
                 new_status_of_entities = [e+"\n" for e in map(str, sorted(entities, key=lambda ent: ent.start_offset))]
-                print_dbg_en(responsible_line, "".join(difflib.unified_diff(debug_last_status_of_entities, new_status_of_entities, fromfile='before', tofile='after', n=0))[:-1], delim="\n", stack_num=2)
+                diff = "".join(difflib.unified_diff(debug_last_status_of_entities, new_status_of_entities, fromfile='before', tofile='after', n=0))[:-1]
+                if diff:
+                    print_dbg_en(responsible_line, diff, delim="\n", stack_num=2)
                 debug_last_status_of_entities = new_status_of_entities
             else:
                 debug_last_status_of_entities = [e+"\n" for e in map(str, sorted(entities, key=lambda ent: ent.start_offset))]
@@ -1690,8 +1692,13 @@ def main():
     parser.add_argument('-n', '--names', action='store_true', default=False, help="Recognizes and prints all names with start and end offsets.")
     parser.add_argument('-o', '--overlap', action='store_true', default=False, help="Enable overlapping of entities in output from Figa.")
     parser.add_argument("--own_kb_daemon", action="store_true", dest="own_kb_daemon", help=("Run own KB daemon although another already running."))
+    parser.add_argument("--debug", action="store_true", help="Enable debugging reports.")
 
     arguments = parser.parse_args()
+    
+    if not debug.DEBUG_EN and arguments.debug:
+        debug.DEBUG_EN = True
+    
     # allowed tokens for daemon mode
     tokens = set(["NER_NEW_FILE", "NER_END", "NER_NEW_FILE_ALL", "NER_END_ALL", "NER_NEW_FILE_SCORE", "NER_END_SCORE", "NER_NEW_FILE_NAMES", "NER_END_NAMES"])
 
