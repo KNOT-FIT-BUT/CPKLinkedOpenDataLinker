@@ -1595,9 +1595,10 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
     for e in figa_entities:
         e.partial_match_senses = e.partial_match_senses & global_senses
 
-    # removing shorter entity from overlapping entities
-    figa_entities = remove_shorter_entities(figa_entities)
-    debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
+    if not entities_overlap:
+        # removing shorter entity from overlapping entities
+        figa_entities = remove_shorter_entities(figa_entities)
+        debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
 
     # removing entities without any sense
     nationalities = []
