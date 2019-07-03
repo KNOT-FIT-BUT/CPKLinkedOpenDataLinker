@@ -173,10 +173,10 @@ def process_czechnames(cznames_file, strip_nameflags = True):
 		for line in f:
 			if line:
 				line = line.strip('\n').split('\t')
-				if len(line) < 4:
+				if len(line) < 5:
 					raise ValueError("Some column missing: {}".format(line))
 				name = line[0]
-				inflections = line[2].split('|') if line[2] != '' else []
+				inflections = line[3].split('|') if line[3] != '' else []
 				for idx, infl in enumerate(inflections):
 					inflection_parts = {}
 					for i_infl_part, infl_part in enumerate(infl.split(' ')):
@@ -185,10 +185,10 @@ def process_czechnames(cznames_file, strip_nameflags = True):
 							inflection_parts[i_infl_part].add(regex.sub(r'(\p{L}*)(\[[^\]]+\])?', '\g<1>', infl_part_variant))
 					if name not in name_inflections:
 						name_inflections[name] = set()
-					built_name_inflections, built_subnames = build_name_variant(line[1], strip_nameflags, inflection_parts, idx == 0, 0, "", set())
+					built_name_inflections, built_subnames = build_name_variant(line[2][-1] if len(line[2]) else "", strip_nameflags, inflection_parts, idx == 0, 0, "", set())
 					name_inflections[name] |= built_name_inflections
 					g_subnames |= built_subnames
-				if len(inflections) == 0 and line[1] in ['F', 'M']:
+				if len(inflections) == 0 and len(line[2]) and line[2][-1] in ['F', 'M']:
 					g_subnames |= Persons.get_normalized_subnames([name], True)
 
 	return name_inflections
