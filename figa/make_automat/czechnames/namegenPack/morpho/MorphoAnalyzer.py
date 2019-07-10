@@ -797,7 +797,22 @@ class MorphoAnalyzerLibma(object):
         #získání informací o slovech
         words=list(words)
         self.__commWithMA(words)
-
+        
+        #určíme všechna slova obsahující pouze velká písmena, která jsou dlouhá alespoň dva znaky
+        for w in words:
+            if len(w)>=2 and w.isupper():
+                g=self.MAWordGroup(w)
+                g.lemma=w
+                
+                g.addTagRule(POS.ABBREVIATION.lntrf) 
+                g.addMorph(POS.ABBREVIATION.lntrf, w)
+                try:
+                    self._wordDatabase[w].addGroup(g)
+                except KeyError:
+                    #slovo zatím není v databázi
+                    self._wordDatabase[w]=self.MAWord()
+                    self._wordDatabase[w].addGroup(g)
+            
         #přidáme ke slovům von, da a de
         #analýzu, že se jedná o předložky za nimiž se slova ohýbají
         for w in ["von", "da", "de"]:

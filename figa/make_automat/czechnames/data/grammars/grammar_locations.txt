@@ -1,5 +1,6 @@
 S
 S -> !NUMERIC S2
+S -> !ABBER	#USA
 
 #Volitelná skupina přídavných jmen následovaných nutným podstatným jménem, které může být následováno
 #další volitelnou skupinou přídavných jmen.
@@ -10,22 +11,17 @@ S -> !NUMERIC S2
 #	Prameniště Kateřinského potoka
 #	Spojené státy americké
 
-S2 -> NUM_ADJ_NOUN(n=S,g=M) END
-S2 -> NUM_ADJ_NOUN(n=S,g=M) !NUM_ADJ_NOUN_CONTINUE END
-S2 -> NUM_ADJ_NOUN(n=S,g=I) END
-S2 -> NUM_ADJ_NOUN(n=S,g=I) !NUM_ADJ_NOUN_CONTINUE END
-S2 -> NUM_ADJ_NOUN(n=S,g=N) END
-S2 -> NUM_ADJ_NOUN(n=S,g=N) !NUM_ADJ_NOUN_CONTINUE END
-S2 -> NUM_ADJ_NOUN(n=S,g=F) END
-S2 -> NUM_ADJ_NOUN(n=S,g=F) !NUM_ADJ_NOUN_CONTINUE END
-S2 -> NUM_ADJ_NOUN(n=P,g=M) END
-S2 -> NUM_ADJ_NOUN(n=P,g=M) !NUM_ADJ_NOUN_CONTINUE END
-S2 -> NUM_ADJ_NOUN(n=P,g=I) END
-S2 -> NUM_ADJ_NOUN(n=P,g=I) !NUM_ADJ_NOUN_CONTINUE END
-S2 -> NUM_ADJ_NOUN(n=P,g=N) END
-S2 -> NUM_ADJ_NOUN(n=P,g=N) !NUM_ADJ_NOUN_CONTINUE END
-S2 -> NUM_ADJ_NOUN(n=P,g=F) END
-S2 -> NUM_ADJ_NOUN(n=P,g=F) !NUM_ADJ_NOUN_CONTINUE END
+S2 -> NUM_ADJ_NOUN_ALL END
+S2 -> NUM_ADJ_NOUN_ALL !NUM_ADJ_NOUN_CONTINUE
+
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=S,g=M)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=S,g=I)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=S,g=N)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=S,g=F)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=P,g=M)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=P,g=I)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=P,g=N)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=P,g=F)
 #/
 
 
@@ -97,7 +93,7 @@ S2 -> NUM_ADJ_NOUN_CASE_SELECT !NUM_ADJ_NOUN_CASE_SELECT(c=2) !CONJ !NUM_ADJ_NOU
 
 !ABBER_TITLE_MANDATORY -> ia{t=I}
 !ABBER_TITLE_MANDATORY -> t{t=T}
-!ABBER_TITLE_MANDATORY -> a{t=A,r="^(?!^((X{1,3}(IX|IV|V?I{0,3}))|((IX|IV|I{1,3}|VI{0,3})))\.?$).*$"}	#regex vylučuje římskou číslici
+!ABBER_TITLE_MANDATORY -> !ABBER
 
 
 END -> !PREP_GROUP !ROMAN_NUM !ABBER_TITLE !NUMERIC NEXT
@@ -167,9 +163,12 @@ LOC2_CONTINUE(c=1,n,g) ->ε
 !AFTER_PREP -> 1{t=L} !AFTER_PREP_ENDING
 !AFTER_PREP -> 2{t=L} !AFTER_PREP_ENDING
 !AFTER_PREP -> 4{t=L} !AFTER_PREP_ENDING
-!AFTER_PREP -> 7{t=L} !AFTER_PREP
+!AFTER_PREP -> !ABBER !AFTER_PREP_ENDING
+!AFTER_PREP -> 7{t=7} !AFTER_PREP
 !AFTER_PREP -> 1{t=L} 8{t=8} 1{t=L} !AFTER_PREP
 !AFTER_PREP -> r{t=R} !AFTER_PREP_ENDING
 !AFTER_PREP_ENDING -> !AFTER_PREP
 !AFTER_PREP_ENDING -> ε
 #/
+
+!ABBER -> a{t=A,r="^(?!^((X{1,3}(IX|IV|V?I{0,3}))|((IX|IV|I{1,3}|VI{0,3})))\.?$)((\p{Lu}\p{Lu}+\.?)|(..+\.))$"} #regex vylučuje římskou číslici, mimo to musí končit tečkou nebo obsahovat pouze velká písmena a mít alespoň 2 písmena

@@ -1,97 +1,109 @@
 S
-#Volitelná skupina přídavných jmen následovaných nutným podstatným jménem
+S -> !NUMERIC S2
+
+#Volitelná skupina přídavných jmen následovaných nutným podstatným jménem, které může být následováno
+#další volitelnou skupinou přídavných jmen.
 #Příklad: Mnichovská dohoda
 #	Slovenské národní povstání
 #	komunistický převrat v Československu
 
-S -> !NUMERIC S2
+S2 -> NUM_ADJ_NOUN_ALL END
+S2 -> NUM_ADJ_NOUN_ALL !NUM_ADJ_NOUN_CONTINUE
 
-S2 -> NUM_ADJ_NOUN END
-S2 -> NUM_ADJ_NOUN !NUM_ADJ_NOUN_CONTINUE
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=S,g=M)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=S,g=I)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=S,g=N)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=S,g=F)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=P,g=M)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=P,g=I)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=P,g=N)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=P,g=F)
 #/
 
 
 #Číslovka s volitelnou skupinou přídavných jmen vázajícíh se na první ze skupiny podstatných jmén.
 #dovolujeme i číslovky mezi (příklad: zánik první republiky)
-NUM_ADJ_NOUN -> NUM_S_M ADJ_GROUP_S_M NUM_S_M LOC2_S_M NUM_S_M
-NUM_ADJ_NOUN -> NUM_S_I ADJ_GROUP_S_I NUM_S_I LOC2_S_I NUM_S_I
-NUM_ADJ_NOUN -> NUM_S_N ADJ_GROUP_S_N NUM_S_N LOC2_S_N NUM_S_N
-NUM_ADJ_NOUN -> NUM_S_F ADJ_GROUP_S_F NUM_S_F LOC2_S_F NUM_S_F
-NUM_ADJ_NOUN -> NUM_P_M ADJ_GROUP_P_M NUM_P_M LOC2_P_M NUM_P_M
-NUM_ADJ_NOUN -> NUM_P_I ADJ_GROUP_P_I NUM_P_I LOC2_P_I NUM_P_I
-NUM_ADJ_NOUN -> NUM_P_N ADJ_GROUP_P_N NUM_P_N LOC2_P_N NUM_P_N
-NUM_ADJ_NOUN -> NUM_P_F ADJ_GROUP_P_F NUM_P_F LOC2_P_F NUM_P_F
+NUM_ADJ_NOUN(c=1,n,g) -> !ROM_OR_NUMERIC NUM(c=$c,n=$n,g=$g) ADJ_GROUP(c=$c,n=$n,g=$g) NUM(c=$c,n=$n,g=$g) LOC2(c=$c,n=$n,g=$g) NUM(c=$c,n=$n,g=$g) ADJ_GROUP(c=$c,n=$n,g=$g) NUM(c=$c,n=$n,g=$g)
 
-#!NUM_ADJ_NOUN_CONTINUE -> 1{t=L} !NUM_ADJ_NOUN_CONTINUE
-#!NUM_ADJ_NOUN_CONTINUE -> 2{t=L} !NUM_ADJ_NOUN_CONTINUE
-#!NUM_ADJ_NOUN_CONTINUE -> 4{t=L} !NUM_ADJ_NOUN_CONTINUE
-!NUM_ADJ_NOUN_CONTINUE -> 1{t=L} !CONJ 1{t=L}	#Např pro: Národní akademické divadlo opery a baletu
-!NUM_ADJ_NOUN_CONTINUE -> ε
+#stejné jako NUM_ADJ_NOUN, ale má zafixovaný rod a číslo
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=S,g=M)
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=S,g=I)
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=S,g=N)
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=S,g=F)
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=P,g=M)
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=P,g=I)
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=P,g=N)
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=P,g=F)
 
+#neohebná verze NUM_ADJ_NOUN_CASE_SELECT
+!NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN_CASE_SELECT(c=$c)
+
+!NUM_ADJ_NOUN_CONTINUE -> 1{t=E} !CONJ 1{t=E}	#Např pro: Národní akademické divadlo opery a baletu
 
 #Nevolitelná předložková skupina
 #Příklad: Pod Šibenicí
 S -> !PREP_GROUP_MANDATORY END
 
 #Obecné přídavné jméno a vlastní jméno místní
-S2 -> 2{c=1,t=L,n=S,g=M,f=GW} 1{c=1,t=L,n=S,g=M,note=jL} END
-S2 -> 2{c=1,t=L,n=S,g=I,f=GW} 1{c=1,t=L,n=S,g=I,note=jL} END
-S2 -> 2{c=1,t=L,n=S,g=N,f=GW} 1{c=1,t=L,n=S,g=N,note=jL} END
-S2 -> 2{c=1,t=L,n=S,g=F,f=GW} 1{c=1,t=L,n=S,g=F,note=jL} END
-S2 -> 2{c=1,t=L,n=P,g=M,f=GW} 1{c=1,t=L,n=P,g=M,note=jL} END
-S2 -> 2{c=1,t=L,n=P,g=I,f=GW} 1{c=1,t=L,n=P,g=I,note=jL} END
-S2 -> 2{c=1,t=L,n=P,g=N,f=GW} 1{c=1,t=L,n=P,g=N,note=jL} END
-S2 -> 2{c=1,t=L,n=P,g=F,f=GW} 1{c=1,t=L,n=P,g=F,note=jL} END
+S2 -> 2{c=1,t=E,n=S,g=M,f=GW} 1{c=1,t=E,n=S,g=M,note=jL} END
+S2 -> 2{c=1,t=E,n=S,g=I,f=GW} 1{c=1,t=E,n=S,g=I,note=jL} END
+S2 -> 2{c=1,t=E,n=S,g=N,f=GW} 1{c=1,t=E,n=S,g=N,note=jL} END
+S2 -> 2{c=1,t=E,n=S,g=F,f=GW} 1{c=1,t=E,n=S,g=F,note=jL} END
+S2 -> 2{c=1,t=E,n=P,g=M,f=GW} 1{c=1,t=E,n=P,g=M,note=jL} END
+S2 -> 2{c=1,t=E,n=P,g=I,f=GW} 1{c=1,t=E,n=P,g=I,note=jL} END
+S2 -> 2{c=1,t=E,n=P,g=N,f=GW} 1{c=1,t=E,n=P,g=N,note=jL} END
+S2 -> 2{c=1,t=E,n=P,g=F,f=GW} 1{c=1,t=E,n=P,g=F,note=jL} END
 
 #Skupina přídavných jmen
 #Příklad: Velký a Malý Kamýk
 #	Velký a Malý Tisý	
 #	Zubří
-S2 -> NUM_S_M ADJ_GROUP_S_M_MANDATORY END
-S2 -> NUM_S_M ADJ_GROUP_S_M_MANDATORY LOC2_S_M END
-S2 -> NUM_S_I ADJ_GROUP_S_I_MANDATORY END
-S2 -> NUM_S_I ADJ_GROUP_S_I_MANDATORY LOC2_S_I END
-S2 -> NUM_S_N ADJ_GROUP_S_N_MANDATORY END
-S2 -> NUM_S_N ADJ_GROUP_S_N_MANDATORY LOC2_S_N END
-S2 -> NUM_S_F ADJ_GROUP_S_F_MANDATORY END
-S2 -> NUM_S_F ADJ_GROUP_S_F_MANDATORY LOC2_S_F END
-S2 -> NUM_P_M ADJ_GROUP_P_M_MANDATORY END
-S2 -> NUM_P_M ADJ_GROUP_P_M_MANDATORY LOC2_P_M END
-S2 -> NUM_P_I ADJ_GROUP_P_I_MANDATORY END
-S2 -> NUM_P_I ADJ_GROUP_P_I_MANDATORY LOC2_P_I END
-S2 -> NUM_P_N ADJ_GROUP_P_N_MANDATORY END
-S2 -> NUM_P_N ADJ_GROUP_P_N_MANDATORY LOC2_P_N END
-S2 -> NUM_P_F ADJ_GROUP_P_F_MANDATORY END
-S2 -> NUM_P_F ADJ_GROUP_P_F_MANDATORY LOC2_P_F END
+S2 -> NUM(n=S,g=M) ADJ_GROUP_MANDATORY(n=S,g=M) END
+S2 -> NUM(n=S,g=M) ADJ_GROUP_MANDATORY(n=S,g=M) LOC2(n=S,g=M) END
+S2 -> NUM(n=S,g=I) ADJ_GROUP_MANDATORY(n=S,g=I) END
+S2 -> NUM(n=S,g=I) ADJ_GROUP_MANDATORY(n=S,g=I) LOC2(n=S,g=I) END
+S2 -> NUM(n=S,g=N) ADJ_GROUP_MANDATORY(n=S,g=N) END
+S2 -> NUM(n=S,g=N) ADJ_GROUP_MANDATORY(n=S,g=N) LOC2(n=S,g=N) END
+S2 -> NUM(n=S,g=F) ADJ_GROUP_MANDATORY(n=S,g=F) END
+S2 -> NUM(n=S,g=F) ADJ_GROUP_MANDATORY(n=S,g=F) LOC2(n=S,g=F) END
+S2 -> NUM(n=P,g=M) ADJ_GROUP_MANDATORY(n=P,g=M) END
+S2 -> NUM(n=P,g=M) ADJ_GROUP_MANDATORY(n=P,g=M) LOC2(n=P,g=M) END
+S2 -> NUM(n=P,g=I) ADJ_GROUP_MANDATORY(n=P,g=I) END
+S2 -> NUM(n=P,g=I) ADJ_GROUP_MANDATORY(n=P,g=I) LOC2(n=P,g=I) END
+S2 -> NUM(n=P,g=N) ADJ_GROUP_MANDATORY(n=P,g=N) END
+S2 -> NUM(n=P,g=N) ADJ_GROUP_MANDATORY(n=P,g=N) LOC2(n=P,g=N) END
+S2 -> NUM(n=P,g=F) ADJ_GROUP_MANDATORY(n=P,g=F) END
+S2 -> NUM(n=P,g=F) ADJ_GROUP_MANDATORY(n=P,g=F) LOC2(n=P,g=F) END
 #/
 
-!ADVERB -> 6{t=L}
+#Uvodní část v 1. pádě ohebná. Zbytek v 2. neohebný.
+#	Spojené království Velké Británie a Severního Irska
+S2 -> NUM_ADJ_NOUN_CASE_SELECT !NUM_ADJ_NOUN_CASE_SELECT(c=2) END
+S2 -> NUM_ADJ_NOUN_CASE_SELECT !NUM_ADJ_NOUN_CASE_SELECT(c=2) !CONJ !NUM_ADJ_NOUN_CASE_SELECT(c=2) END
+
+!ADVERB -> 6{t=E}
 !ADVERB -> ε
 
-!ABBER -> ia{t=I}
-!ABBER -> ε
+!ABBER_TITLE -> !ABBER_TITLE_MANDATORY
+!ABBER_TITLE -> ε
 
-END -> !PREP_GROUP !ROMAN_NUM !ABBER !NUMERIC NEXT
+!ABBER_TITLE_MANDATORY -> ia{t=I}
+!ABBER_TITLE_MANDATORY -> t{t=T}
+!ABBER_TITLE_MANDATORY -> a{t=A,r="^(?!^((X{1,3}(IX|IV|V?I{0,3}))|((IX|IV|I{1,3}|VI{0,3})))\.?$)((\p{Lu}\p{Lu}+\.?)|(..+\.))$"} #regex vylučuje římskou číslici, mimo to musí končit tečkou nebo obsahovat pouze velká písmena a mít alespoň 2 písmena
+
+
+END -> !PREP_GROUP !ROMAN_NUM !ABBER_TITLE !NUMERIC NEXT
 
 #číslovka
 #Příklad výskytu: Devět Křížů
-NUM_S_M -> 4{c=1,t=L,n=S,g=M}
-NUM_S_M -> ε
-NUM_S_I -> 4{c=1,t=L,n=S,g=I}
-NUM_S_I -> ε
-NUM_S_N -> 4{c=1,t=L,n=S,g=N}
-NUM_S_N -> ε
-NUM_S_F -> 4{c=1,t=L,n=S,g=F}
-NUM_S_F -> ε
-NUM_P_M -> 4{c=1,t=L,n=P,g=M}
-NUM_P_M -> ε
-NUM_P_I -> 4{c=1,t=L,n=P,g=I}
-NUM_P_I -> ε
-NUM_P_N -> 4{c=1,t=L,n=P,g=N}
-NUM_P_N -> ε
-NUM_P_F -> 4{c=1,t=L,n=P,g=F}
-NUM_P_F -> ε
+NUM(c=1,n,g) -> 4{c=$c,t=E,n=$n,g=$g}
+NUM(c=1,n,g) -> ε
 #/
+
+#volitelna nesklona rimska ci bezna cislice
+!ROM_OR_NUMERIC -> !ROMAN_NUM
+!ROM_OR_NUMERIC -> !NUMERIC
+!ROM_OR_NUMERIC -> ε
 
 !ROMAN_NUM -> r{t=R}
 !ROMAN_NUM -> ε
@@ -109,45 +121,11 @@ NEXT -> ε
 #Skupina přídavných jmen
 # i s volitelným příslovcem
 # vhodné např pro: Etiopská lidově demokratická republika
-ADJ_GROUP_S_M_MANDATORY -> !ADVERB  2{c=1,t=L,n=S,g=M} ADJ_GROUP_S_M
-ADJ_GROUP_S_M -> !ADVERB  2{c=1,t=L,n=S,g=M} ADJ_GROUP_S_M
-ADJ_GROUP_S_M -> !ADVERB  2{c=1,t=L,n=S,g=M} !CONJ ADJ_GROUP_S_M_MANDATORY
-ADJ_GROUP_S_M -> ε
 
-ADJ_GROUP_S_I_MANDATORY -> !ADVERB  2{c=1,t=L,n=S,g=I} ADJ_GROUP_S_I
-ADJ_GROUP_S_I -> !ADVERB  2{c=1,t=L,n=S,g=I} ADJ_GROUP_S_I
-ADJ_GROUP_S_I -> !ADVERB  2{c=1,t=L,n=S,g=I} !CONJ ADJ_GROUP_S_I_MANDATORY
-ADJ_GROUP_S_I -> ε
-
-ADJ_GROUP_S_N_MANDATORY -> !ADVERB  2{c=1,t=L,n=S,g=N} ADJ_GROUP_S_N
-ADJ_GROUP_S_N -> !ADVERB  2{c=1,t=L,n=S,g=N} ADJ_GROUP_S_N
-ADJ_GROUP_S_N -> !ADVERB  2{c=1,t=L,n=S,g=N} !CONJ ADJ_GROUP_S_N_MANDATORY
-ADJ_GROUP_S_N -> ε
-
-ADJ_GROUP_S_F_MANDATORY -> !ADVERB  2{c=1,t=L,n=S,g=F} ADJ_GROUP_S_F
-ADJ_GROUP_S_F -> !ADVERB  2{c=1,t=L,n=S,g=F} ADJ_GROUP_S_F
-ADJ_GROUP_S_F -> !ADVERB  2{c=1,t=L,n=S,g=F} !CONJ ADJ_GROUP_S_F_MANDATORY
-ADJ_GROUP_S_F -> ε
-
-ADJ_GROUP_P_M_MANDATORY -> !ADVERB  2{c=1,t=L,n=P,g=M} ADJ_GROUP_P_M
-ADJ_GROUP_P_M -> !ADVERB  2{c=1,t=L,n=P,g=M} ADJ_GROUP_P_M
-ADJ_GROUP_P_M -> !ADVERB  2{c=1,t=L,n=P,g=M} !CONJ ADJ_GROUP_P_M_MANDATORY
-ADJ_GROUP_P_M -> ε
-
-ADJ_GROUP_P_I_MANDATORY -> !ADVERB  2{c=1,t=L,n=P,g=I} ADJ_GROUP_P_I
-ADJ_GROUP_P_I -> !ADVERB  2{c=1,t=L,n=P,g=I} ADJ_GROUP_P_I
-ADJ_GROUP_P_I -> !ADVERB  2{c=1,t=L,n=P,g=I} !CONJ ADJ_GROUP_P_I_MANDATORY
-ADJ_GROUP_P_I -> ε
-
-ADJ_GROUP_P_N_MANDATORY -> !ADVERB  2{c=1,t=L,n=P,g=N} ADJ_GROUP_P_N
-ADJ_GROUP_P_N -> !ADVERB  2{c=1,t=L,n=P,g=N} ADJ_GROUP_P_N
-ADJ_GROUP_P_N -> !ADVERB  2{c=1,t=L,n=P,g=N} !CONJ ADJ_GROUP_P_N_MANDATORY
-ADJ_GROUP_P_N -> ε
-
-ADJ_GROUP_P_F_MANDATORY -> !ADVERB  2{c=1,t=L,n=P,g=F} ADJ_GROUP_P_F
-ADJ_GROUP_P_F -> !ADVERB  2{c=1,t=L,n=P,g=F} ADJ_GROUP_P_F
-ADJ_GROUP_P_F -> !ADVERB  2{c=1,t=L,n=P,g=F} !CONJ ADJ_GROUP_P_F_MANDATORY
-ADJ_GROUP_P_F -> ε
+ADJ_GROUP_MANDATORY(c=1,n,g) -> !ADVERB  2{c=$c,t=E,n=$n,g=$g} ADJ_GROUP(c=$c,n=$n,g=$g)
+ADJ_GROUP(c=1,n,g) -> !ADVERB  2{c=$c,t=E,n=$n,g=$g} ADJ_GROUP(c=$c,n=$n,g=$g)
+ADJ_GROUP(c=1,n,g) -> !ADVERB  2{c=1,t=E,n=S,g=M} !CONJ ADJ_GROUP_MANDATORY(c=$c,n=$n,g=$g)
+ADJ_GROUP(c=1,n,g) -> ε
 #/
 
 #Podstatné jméno následováno volitelnými ne/ohebnými podstatnými jmény
@@ -155,65 +133,20 @@ ADJ_GROUP_P_F -> ε
 #Příklad: Rozhledna Vladimíra Menšíka
 #	Palác Flóra
 #	Brno
-LOC2_S_M -> 1{c=1,t=L,n=S,g=M,f=GW} !NAME_NOMINATIVE
-LOC2_S_M -> 1{c=1,t=L,n=S,g=M,f=GW} !VOLUNTARY_NO_FLEX_N
-LOC2_S_M -> 1{c=1,t=L,n=S,g=M,f=NGW} !VOLUNTARY_NO_FLEX_N
-LOC2_S_M -> 1{c=1,t=L,n=S,g=M,f=NGW} LOC2_S_M_CONTINUE
-LOC2_S_M_CONTINUE -> 1{c=1,t=L,n=S,g=M}
-LOC2_S_M_CONTINUE ->ε
+#	Jirsko 2.díl
 
-LOC2_S_I -> 1{c=1,t=L,n=S,g=I,f=GW} !NAME_NOMINATIVE
-LOC2_S_I -> 1{c=1,t=L,n=S,g=I,f=GW} !VOLUNTARY_NO_FLEX_N
-LOC2_S_I -> 1{c=1,t=L,n=S,g=I,f=NGW} !VOLUNTARY_NO_FLEX_N
-LOC2_S_I -> 1{c=1,t=L,n=S,g=I,f=NGW} LOC2_S_I_CONTINUE
-LOC2_S_I_CONTINUE -> 1{c=1,t=L,n=S,g=I}
-LOC2_S_I_CONTINUE -> ε
+LOC2(c=1,n,g) -> 1{c=$c,t=E,n=$n,g=$g} !ABBER_TITLE_MANDATORY !VOLUNTARY_NO_FLEX_N	#Kaple sv. Anny
+LOC2(c=1,n,g) -> 1{c=$c,t=E,n=$n,g=$g} !NUMERIC !NAME_NOMINATIVE	#Jirsko 2.díl (nevím jestli je 2.díl nominativ, ale nema se ohybat)
+LOC2(c=1,n,g) -> 1{c=$c,t=E,n=$n,g=$g,f=GW} !NAME_NOMINATIVE	#Palác Flóra
+LOC2(c=1,n,g) -> 1{c=$c,t=E,n=$n,g=$g,f=GW} !VOLUNTARY_NO_FLEX_N
+LOC2(c=1,n,g) -> 1{c=$c,t=E,n=$n,g=$g,f=NGW} !VOLUNTARY_NO_FLEX_N
+LOC2(c=1,n,g) -> 1{c=$c,t=E,n=$n,g=$g,f=NGW} LOC2_CONTINUE(c=$c,n=$n,g=$g)
+LOC2_CONTINUE(c=1,n,g) -> 1{c=$c,t=E,n=$n,g=$g}
+LOC2_CONTINUE(c=1,n,g) ->ε
 
-LOC2_S_N -> 1{c=1,t=L,n=S,g=N,f=GW} !NAME_NOMINATIVE
-LOC2_S_N -> 1{c=1,t=L,n=S,g=N,f=GW} !VOLUNTARY_NO_FLEX_N
-LOC2_S_N -> 1{c=1,t=L,n=S,g=N,f=NGW} !VOLUNTARY_NO_FLEX_N
-LOC2_S_N -> 1{c=1,t=L,n=S,g=N,f=NGW} LOC2_S_N_CONTINUE
-LOC2_S_N_CONTINUE -> 1{c=1,t=L,n=S,g=N}
-LOC2_S_N_CONTINUE -> ε
-
-LOC2_S_F -> 1{c=1,t=L,n=S,g=F,f=GW} !NAME_NOMINATIVE
-LOC2_S_F -> 1{c=1,t=L,n=S,g=F,f=GW} !VOLUNTARY_NO_FLEX_N
-LOC2_S_F -> 1{c=1,t=L,n=S,g=F,f=NGW} !VOLUNTARY_NO_FLEX_N
-LOC2_S_F -> 1{c=1,t=L,n=S,g=F,f=NGW} LOC2_S_F_CONTINUE
-LOC2_S_F_CONTINUE -> 1{c=1,t=L,n=S,g=F}
-LOC2_S_F_CONTINUE -> ε
-
-LOC2_P_M -> 1{c=1,t=L,n=P,g=M,f=GW} !NAME_NOMINATIVE
-LOC2_P_M -> 1{c=1,t=L,n=P,g=M,f=GW} !VOLUNTARY_NO_FLEX_N
-LOC2_P_M -> 1{c=1,t=L,n=P,g=M,f=NGW} !VOLUNTARY_NO_FLEX_N
-LOC2_P_M -> 1{c=1,t=L,n=P,g=M,f=NGW} LOC2_P_M_CONTINUE
-LOC2_P_M_CONTINUE -> 1{c=1,t=L,n=P,g=M}
-LOC2_P_M_CONTINUE -> ε
-
-LOC2_P_I -> 1{c=1,t=L,n=P,g=I,f=GW} !NAME_NOMINATIVE
-LOC2_P_I -> 1{c=1,t=L,n=P,g=I,f=GW} !VOLUNTARY_NO_FLEX_N
-LOC2_P_I -> 1{c=1,t=L,n=P,g=I,f=NGW} !VOLUNTARY_NO_FLEX_N
-LOC2_P_I -> 1{c=1,t=L,n=P,g=I,f=NGW} LOC2_P_I_CONTINUE
-LOC2_P_I_CONTINUE -> 1{c=1,t=L,n=P,g=I}
-LOC2_P_I_CONTINUE -> ε
-
-LOC2_P_N -> 1{c=1,t=L,n=P,g=N,f=GW} !NAME_NOMINATIVE
-LOC2_P_N -> 1{c=1,t=L,n=P,g=N,f=GW} !VOLUNTARY_NO_FLEX_N
-LOC2_P_N -> 1{c=1,t=L,n=P,g=N,f=NGW} !VOLUNTARY_NO_FLEX_N
-LOC2_P_N -> 1{c=1,t=L,n=P,g=N,f=NGW} LOC2_P_N_CONTINUE
-LOC2_P_N_CONTINUE -> 1{c=1,t=L,n=P,g=N}
-LOC2_P_N_CONTINUE -> ε
-
-LOC2_P_F -> 1{c=1,t=L,n=P,g=F,f=GW} !NAME_NOMINATIVE
-LOC2_P_F -> 1{c=1,t=L,n=P,g=F,f=GW} !VOLUNTARY_NO_FLEX_N
-LOC2_P_F -> 1{c=1,t=L,n=P,g=F,f=NGW} !VOLUNTARY_NO_FLEX_N
-LOC2_P_F -> 1{c=1,t=L,n=P,g=F,f=NGW} LOC2_P_F_CONTINUE
-LOC2_P_F_CONTINUE -> 1{c=1,t=L,n=P,g=F}
-LOC2_P_F_CONTINUE -> ε
-
-!NAME_NOMINATIVE -> 1{c=1,t=L}
-!NAME_NOMINATIVE -> ε
-!VOLUNTARY_NO_FLEX_N -> 1{c=2,t=L} !VOLUNTARY_NO_FLEX_N
+!NAME_NOMINATIVE -> 1{c=1,t=E} !NAME_NOMINATIVE
+!NAME_NOMINATIVE -> 1{c=1,t=E}
+!VOLUNTARY_NO_FLEX_N -> 1{c=2,t=E} !VOLUNTARY_NO_FLEX_N
 !VOLUNTARY_NO_FLEX_N -> ε
 #/
 
@@ -226,7 +159,8 @@ LOC2_P_F_CONTINUE -> ε
 !AFTER_PREP -> 1{t=L} !AFTER_PREP_ENDING
 !AFTER_PREP -> 2{t=L} !AFTER_PREP_ENDING
 !AFTER_PREP -> 4{t=L} !AFTER_PREP_ENDING
-!AFTER_PREP -> 7{t=L} !AFTER_PREP
+!AFTER_PREP -> a{t=A,r="^(?!^((X{1,3}(IX|IV|V?I{0,3}))|((IX|IV|I{1,3}|VI{0,3})))\.?$)((\p{Lu}\p{Lu}+\.?)|(..+\.))$"} !AFTER_PREP_ENDING
+!AFTER_PREP -> 7{t=7} !AFTER_PREP
 !AFTER_PREP -> 1{t=L} 8{t=8} 1{t=L} !AFTER_PREP
 !AFTER_PREP -> r{t=R} !AFTER_PREP_ENDING
 !AFTER_PREP_ENDING -> !AFTER_PREP

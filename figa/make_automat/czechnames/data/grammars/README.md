@@ -59,12 +59,13 @@ Možné atributy a jejich hodnoty:
 		G	Křestní jméno. Příklad: Petra
     	S	Příjmení. Příklad: Novák
     	L	Lokace. Příklad: Brno
+    	E	Událost. Příklad: Osvobození Československa
     	R	Římská číslice. Příklad: IV
     	7	Předložka.
     	8	Spojka.
     	T	Titul. Příklad: prof.
     	I	Iniciálová zkratka. Příklad H. ve jméně John H. White
-    	A	Zkratka. Příklad Sv. ve jméně Sv. Nikola
+    	A	Zkratka. Příklad jr. (junior) ve jméně Jan jr.
     	U	Neznámé
     r - Regulární výraz, který určuje podobu slova.
     	Hodnota musí být vepsána v uvozovkách.
@@ -76,6 +77,26 @@ Možné atributy a jejich hodnoty:
     f	-	Flagy
     	GW	- Jedná se o obecné slovo. Jehož lemma začíná malým písmenem a jeho morfologická analýza je bez poznámky.
 		NGW - negace GW
+		
+	p - priorita
+    	Výchozí hodnota priority terminálu je 0.
+    	Používá se při generování tvarů pro filtrování nechtěných derivací.
+    	Příklad:
+    		1. derivace: Adam F	P:::M	Adam[k1gMnSc1]#G F[k1gNnSc1]#S ...
+	    		Adam	1{p=0, c=1, t=G, g=M, r="^(?!^([sS]vatý|[sS]aint)$).*$", note=jG, n=S}
+				F	1{t=S, c=1, p=0, note=jS, g=N, n=S}
+    		2. derivace (vítězná): Adam F	P:::M	Adam[k1gMnSc1]#G F#I ...
+				Adam	1{p=0, c=1, t=G, g=M, r="^(?!^([sS]vatý|[sS]aint)$).*$", note=jG, n=S}
+				F	ia{p=1, t=I}
+		
+    		Díky prioritě p=1 u F ve druhé derivaci bude vybrána pouze tato derivace.
+    		Samotný výběr probíhá tak, že procházíme pomyslným stromem od kořene (první slovo) a postupně, jak procházíme úrovně (slova),
+    		tak odstraňujeme větve, kde je menší priorita.
+    		Příklad (pouze priority):
+    			0 0 0 4
+    			2 0 0 0
+    			
+    			Bude vybrána druhá derivace, protože jsme první odstřihli již při prvním slově, tudiž vyšší priorita není brána v úvahu.
 
 Je také možné označit atribut jako volitelný pomocí ?. Příklad:
 

@@ -11,6 +11,7 @@ import sys
 
 from namegenPack import Errors
 import logging
+import locale
 
 from namegenPack.morpho import MorphCategories
 from namegenPack.morpho.MorphCategories import Case, POS
@@ -20,6 +21,7 @@ import namegenPack.Grammar
 
 from namegenPack.Word import Word, WordTypeMark
 from namegenPack.Grammar import Terminal, Token
+from namegenPack.Filters import Filter
 
 
 class Name(object):
@@ -50,7 +52,7 @@ class Name(object):
             Je x jméno ženy?
                 x== PersonGender.FEMALE
         
-        Zjištění zda je druh x plně určen pro výber vhodné gramatiky:
+        Zjištění zda je druh x plně určen pro výběr vhodné gramatiky (true není):
             x == None
         """
         
@@ -62,6 +64,7 @@ class Name(object):
             Hlavní druh jména.
             """
             LOCATION="L"
+            EVENTS="E"
             PERSON="P"
             
             def __str__(self):
@@ -108,18 +111,24 @@ class Name(object):
     
         def __eq__(self, other):
             if other is None:
+                #Zjištění zda je druh x plně určen pro výběr vhodné gramatiky
                 if self.levels[self.INDEX_OF_MAIN_TYPE]==self.MainType.PERSON and \
                     self.levels[self.INDEX_OF_PERSONS_GENDER]==other:
+                    #není
                     return True
 
             if isinstance(other, self.__class__):
+                #druhý je také typ
+                #klasicky porovnáme
                 return self.__dict__ == other.__dict__
             
             if isinstance(other, self.MainType):
+                #porovnání na úrorvni main type
                 if self.levels[self.INDEX_OF_MAIN_TYPE]==other:
                     return True;
             
             if isinstance(other, self.PersonGender):
+                #porovnání na úrovni osob
                 if self.levels[self.INDEX_OF_MAIN_TYPE]==self.MainType.PERSON and \
                     self.levels[self.INDEX_OF_PERSONS_GENDER]==other:
                     return True;
@@ -129,20 +138,24 @@ class Name(object):
         def __str__(self):
             return ":".join("" if x is None else str(x) for x in self.levels)
 
-    def __init__(self, name, nType, addit=[], wordDatabase:Dict[str,Word]={}):
+    def __init__(self, name, language:str, nType, addit=[], wordDatabase:Dict[str,Word]={}):
         """
         Konstruktor jména.
 
         :param name: Řetězec se jménem.
         :type name: String
+        :param language: Jazyk tohoto jména.
+        :type language: str
         :param nType: Druh jména.
         :type nType: str
         :param addit: Přídavné info ke jménu
         :type addit: List
-        :param wordDatabase: Databázee obsahující již vyskytující se slova v předcházejících jménech.
+        :param wordDatabase: Databáze obsahující již vyskytující se slova v předcházejících jménech.
         :type wordDatabase: Dict[str,Word]
         :raise NameCouldntCreateException: Nelze vytvořit jméno.
         """
+        
+        self._language=language
         self._type=nType
         self.additionalInfo=addit
         try:
@@ -173,37 +186,52 @@ class Name(object):
         return n
 
     def __repr__(self):
-        return str((str(self), self._type))
-
+        return str((str(self), self._language,self._type, self.additionalInfo))
+    
+    def __lt__(self, other):
+        #porovnání s ohledem na aktuální locale
+        return locale.strxfrm(str(self))<locale.strxfrm(str(other))
+    
     def __eq__(self, other):
-        return str(self)==str(other) and self._type == other._type
+        return str(self)==str(other) and self._language==other._language and self._type == other._type
 
     def __hash__(self):
-        return hash(str(self))^hash(self._type)
+        return hash(str(self))^hash(self._language)^hash(self._type)
+    
+    def __len__(self):
+        return len(self._words)
 
     def __iter__(self):
         for w in self._words:
             yield w
+            
+    def __getitem__(self, key):
+        return self._words[key]
 
     def printName(self):
         """
-        Převede jméno do string. Pokud má jménu typ, tak je přidán. Jméno a typ jsou
-        odděleny tabulátorem. Pokud má jméno nějaké přídavné informace, tak je také přidá.
+        Převede jméno do string. Pokud má jméno nějaké přídavné informace, tak je také přidá.
+        Formát: <jméno>\TAB<jazyk>\TAB<typeflag>\TAB\TAB<url>
         """
         
         res=str(self)
-        if self.type:
-            res+="\t"+str(self.type)
-            
+        
+        res+="\t"+str(self._language)
+        
+        res+="\t"+str(self._type)
+        
+        res+="\t\t"
+        
         if len(self.additionalInfo)>0:
-            res+="\t\t"+("\t".join(self.additionalInfo))
+            res+=("\t".join(self.additionalInfo))
+            
         
         return res
 
     def guessType(self, grammars=None, tokens:List[namegenPack.Grammar.Token]=None):
         """
         Provede odhad typu jména. Jedná se o jisté zpochybnění zda-li se jedná o mužské, či ženské jméno.
-        Jména lokací nezpochybňujě.
+        Jména lokací a událostí nezpochybňujě.
         Přepíše typ jména pokud si myslí, že je jiný.
         Pokud není typ jména uveden odhadne jej, ovšem pevně předpokládá, že se jedná o jméno osoby.
         (Dle zadání má být automaticky předpokládána osoba, kde se může stát, že typ není uveden.)
@@ -221,8 +249,8 @@ class Name(object):
         :raise Word.WordCouldntGetInfoException:Pokud se nepodařilo analyzovat nějaké slovo.
         :raise TimeoutException: Při provádění syntaktické analýzy (pro jednou z gramatik), nad tímto jménem, došlo k timeoutu.
         """
-        if self._type==self.Type.MainType.LOCATION:
-            #lokace -> ponecháváme
+        if self._type!=self.Type.MainType.PERSON:
+            #zbochybňujeme jen jména a osob
             return
         if not tokens:
             tokens=namegenPack.Grammar.Lex.getTokens(self)
@@ -370,7 +398,7 @@ class Name(object):
                     #uložíme to staré a příslušný separátor
                     words.append(actWord)
                     actWord=""
-
+                    
                     separators.append(actSeparator)
                     actSeparator=""
                     separatorOccured=False
@@ -570,7 +598,9 @@ class Name(object):
                         morph+="E"
                 #přidání oddělovače slov
                 if sepIndex < len(self._separators):
-                    morph+=self._separators[sepIndex]
+                    putSep=self._separators[sepIndex]
+                    #přidáváme mezeru nulové délky, pokud neni separator
+                    morph+=(putSep if len(putSep)>0 else u'\u200b')   
                 sepIndex+=1
 
             if len(morph)>0:
@@ -609,6 +639,13 @@ class Name(object):
     def type(self):
         """Getter pro druh jména."""
         return self._type
+    
+    
+    @property
+    def language(self):
+        """Getter pro jazyk jména."""
+        return self._language
+
 
 class NameReader(object):
     """
@@ -639,30 +676,26 @@ class NameReader(object):
     def _readInput(self, rInput):
         """
         Čtení vstupu.
+        
         :param rInput: Vstup
         """
         wordDatabase={} #zde budeme ukládat již vyskytující se slova
         for line in rInput:
                 line = line.strip()
-                parts = line.split("\t")
-
-                if len(parts)<2:
-                    if len(parts)==0:
-                        # nevalidní formát vstupu
-                        print(Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_INVALID_NAME) + "\t" + line, file=sys.stderr)
-                        self._errorCnt += 1
-                        continue
-                    # Necháme provést odhad typu slova.
-                    # Dle zadání má být automaticky předpokládána osoba, kde se může stát, že typ není uveden.
-                    # Řešeno v Name
-                    parts.append(None)
-
+                parts = line.split("\t") #<jméno>\TAB<jazyk>\TAB<typeflag>\TAB<url>
+                
+                if len(parts)<3:
+                    # nevalidní formát vstupu
+                    print(Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_INVALID_NAME) + "\t" + line, file=sys.stderr)
+                    self._errorCnt += 1
+                    continue
                 try:
                     additInfo=[]    #přídavné info, například URL odkaď název/jméno pochází
-                    if len(parts)>2:
-                        additInfo=parts[2:]
+                    if len(parts)>3:
+                        additInfo=parts[3:]
                     # Přidáváme wordDatabase pro ušetření paměti
-                    self.names.append(Name(parts[0], parts[1], additInfo, wordDatabase))
+                    #<jméno>\TAB<jazyk>\TAB<typeflag>\TAB<url>
+                    self.names.append(Name(parts[0], parts[1], parts[2], additInfo, wordDatabase))
                 except Name.NameCouldntCreateException as e:
                     # problém při vytváření jména
                     print(e.message, file=sys.stderr)
@@ -675,7 +708,7 @@ class NameReader(object):
         """
         return self._errorCnt
 
-    def allWords(self, stringRep=False, alnumCheck=False):
+    def allWords(self, stringRep=False, alnumCheck=False, but:Filter=None):
         """
         Slova vyskytující se ve všech jménech.
 
@@ -683,35 +716,43 @@ class NameReader(object):
         :type stringRep: bool
         :param alnumCheck: Vybere jen ta slova, která obsahují aspoň jeden alfanumerický znak.
         :type alnumCheck: bool
+        :param but: Volitelně je možné přidat filtr jmen jejichž slova nemají být použita.
+        :type but: Filter
         :return Množina všech slov ve jménech.
         :rtype: Set[Word] | Set[str]
         """
         words=set()
+        
+        filteredNames=self.names
+        
+        if but is not None:
+            filteredNames=filter(but, filteredNames)
+        
         if stringRep:
             if alnumCheck:
-                for name in self.names:
+                for name in filteredNames:
                     for w in name:
                         st=str(w)
                         if any(s.isalnum() for s in st):
                             words.add(st)
             else:
-                for name in self.names:
+                for name in filteredNames:
                     for w in name:
                         words.add(str(w))
         else:
             if alnumCheck:
-                for name in self.names:
+                for name in filteredNames:
                     for w in name:
                         if any(s.isalnum() for s in str(w)):
                             words.add(w)
             else:
-                for name in self.names:
+                for name in filteredNames:
                     for w in name:
                         words.add(w)
         return words
 
     def __iter__(self):
         """
-        Iterace přes všechna jména.
+        Iterace přes všechna jména. V seřazeném pořadí.
         """
-        return iter(self.names)
+        return iter(sorted(self.names))
