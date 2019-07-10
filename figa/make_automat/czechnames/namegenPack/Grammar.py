@@ -7,7 +7,7 @@ Modul pro práci s gramatikou (Bezkontextovou).
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
 from namegenPack import Errors
-import re
+import regex as re
 from typing import Set, Dict, List, Tuple
 from namegenPack.morpho.MorphCategories import MorphCategory, Gender, Number,\
     MorphCategories, POS, StylisticFlag, Case, Note, Flag
@@ -264,6 +264,7 @@ class Terminal(object):
             FLAGS="f"   #Flagy, které musí mít skupina z morfologické analýzy.    (Speciální atribut)
             WORD_TYPE="t"    #druh slova ve jméně Křestní, příjmení atd. (Informační atribut)
             MATCH_REGEX="r"    #Slovo samotné sedí na daný regulární výraz. (Speciální atribut)
+            PRIORITY="p"    #Přenastavuje prioritu terminálu (výchozí 0). Ve fázi generování tvarů je možné filtrovat na základě priority. (Speciální atribut)
             #Pokud přidáte nový je třeba upravit Attribute.createFrom a isFiltering
             
             def __init__(self, *args):
@@ -377,6 +378,15 @@ class Terminal(object):
                 except re.error:
                     raise InvalidGrammarException(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_ARGUMENT, \
                                               Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_ARGUMENT).format(s))
+            elif cls.Type.PRIORITY==t:
+                try:
+                    v=int(aV)
+                    if v<0:
+                        #negativní hodnoty nejsou povoleny
+                        raise ValueError()
+                except ValueError:
+                    raise InvalidGrammarException(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_ARGUMENT, \
+                                              Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_ARGUMENT).format(s))
             else:
                 v=WordTypeMark(aV)
             
@@ -438,6 +448,11 @@ class Terminal(object):
         if not any(a.type==self.Attribute.Type.WORD_TYPE for a in attr):
             #nebyl, přidáme neznámý
             attr=attr|set([self.Attribute(self.Attribute.Type.WORD_TYPE, WordTypeMark.UNKNOWN)])
+            
+        #zjistíme jestli byla přepsána defaultní priorita
+        if not any(a.type==self.Attribute.Type.PRIORITY for a in attr):
+            #nebyla, přidáme defaultní
+            attr=attr|set([self.Attribute(self.Attribute.Type.PRIORITY, 0)])
         
         self._attributes=frozenset(attr)
         
@@ -543,22 +558,21 @@ class Terminal(object):
         :rtype: bool
         :raise WordCouldntGetInfoException: Problém při analýze slova.
         """
-        if t.type==Token.Type.ANALYZE_UNKNOWN and self.type in self.UNKNOWN_ANALYZE_TERMINAL_MATCH:
-            #tento druh tokenu sedí na každý termínal druhu pos type
-            return True
+        
         
         mr=self.getAttribute(self.Attribute.Type.MATCH_REGEX)
         if mr is not None and not mr.value.match(str(t.word)):
             #kontrola na regex match neprošla
             return False
-            
-        #Zjistíme zda-li se jedná o token, který potenciálně potřebuje analyzátor (ANALYZE, ROMAN_NUMBER)
         
-        if t.type not in Lex.TOKEN_TYPES_THAT_NEEDS_MA:
-            #Jedná se o jednoduchý token bez nutnosti morfologické analýzy.
-            return t.type.value==self._type.value   #V tomto případě požívá terminál a token stejné hodnoty u typů
-        else:
-            #Token je buď ANALYZE, nebo se jedná o římské číslo.
+        if t.type==Token.Type.ANALYZE_UNKNOWN and self.type in self.UNKNOWN_ANALYZE_TERMINAL_MATCH:
+            #tento druh tokenu sedí na každý termínal druhu z self.UNKNOWN_ANALYZE_TERMINAL_MATCH
+            return True
+            
+        #Zjistíme zda-li se jedná o token, který potenciálně potřebuje analyzátor.
+        
+        if t.type in Lex.TOKEN_TYPES_THAT_NEEDS_MA:
+            #potřebujeme analýzu
             #Musíme zjistit jaký druh terminálu máme
             if self._type.isPOSType:
                 groupFlags=self.getAttribute(self.Attribute.Type.FLAGS)
@@ -579,8 +593,12 @@ class Terminal(object):
                 return self._type.toPOS() in pos
             else:
                 #pro tento terminál se nepoužívá analyzátor
-                #musí být shoda na římské číslo
-                return t.type.value==self._type.value==Token.Type.ROMAN_NUMBER.value
+                
+                return t.type.value==self._type.value
+        else:
+            #Jedná se o jednoduchý token bez nutnosti morfologické analýzy.
+            return t.type.value==self._type.value   #V tomto případě požívá terminál a token stejné hodnoty u typů
+            
             
 
     def __str__(self):
@@ -612,7 +630,7 @@ class Token(object):
         NUMBER=Terminal.Type.NUMBER.value          #číslice (pouze z číslovek) Příklady: 12., 12
         ROMAN_NUMBER= Terminal.Type.ROMAN_NUMBER.value   #římská číslice Je třeba zohlednit i analýzu kvůli shodě s předložkou V
         DEGREE_TITLE= Terminal.Type.DEGREE_TITLE.value  #titul
-        INITIAL_ABBREVIATION= Terminal.Type.INITIAL_ABBREVIATION.value   #Iniciálová zkratka.
+        INITIAL_ABBREVIATION= Terminal.Type.INITIAL_ABBREVIATION.value   #Iniciálová zkratka. Je třeba zohlednit i analýzu kvůli shodě s některými předložkami.
         EOF= Terminal.Type.EOF.value #konec vstupu
         X= Terminal.Type.X.value    #neznámé
         #Pokud zde budete něco měnit je třeba provést úpravy v Terminal.tokenMatch.
@@ -680,21 +698,52 @@ class Token(object):
             return self._type==other._type and self._word==other._word
         
         return False
-    
-    
+
 class Lex(object):
     """
     Lexikální analyzátor pro jména.
     """
-    TITLES=set()
-    """Banka titulů je načtena na začátku z konfiguračního souboru.
-    Převeďte do velkých písmen pro správné porovnání!"""
+    __TITLES=set()
+    """Banka titulů je načtena na začátku z konfiguračního souboru. Pro přiřazení použijte
+    metodu setTitles"""
+    
+    __TITLES_PREFIXES=set()
+    """Banka prefixů titulů. Příklady titulových prefixů pro titul  Ing.arch.:
+        Ing."""
 
     ROMAN_NUMBER_REGEX=re.compile(r"^((X{1,3}(IX|IV|V?I{0,3}))|((IX|IV|I{1,3}|VI{0,3})))\.?$", re.IGNORECASE)
     NUMBER_REGEX=re.compile(r"^[0-9]+\.?$", re.IGNORECASE)
     
-    TOKEN_TYPES_THAT_NEEDS_MA={Token.Type.ANALYZE, Token.Type.ROMAN_NUMBER}
+    TOKEN_TYPES_THAT_NEEDS_MA={Token.Type.ANALYZE, Token.Type.ROMAN_NUMBER, Token.Type.INITIAL_ABBREVIATION}
     
+    @classmethod
+    def setTitles(cls, titles:Set[str]):
+        """
+        Nastaví řetězce, které mají být brány za tituly.
+        Zabezpečuje, aby byly brány i různé varianty u titulů typu:
+            Ing.arch.
+            Varianty: Ing.arch.    Ing. arch.
+        
+        :param titles: Množina titulů.
+        :type titles: Set[str]
+        """
+        cls.__TITLES=titles
+        
+        #Přidáme i všechny prefixy, tak abysme později lépe detekovali získanou část titulu.
+        #Příklady titulových prefixů pro titul  Ing.arch.:
+        #Ing.
+        
+        for t in titles:
+            
+            pref=""
+            for i,c in enumerate(t):
+                pref+=c
+                if c == "." and i!=len(t)-1:    #i!=len(t)-1 poslední ne
+                    cls.__TITLES_PREFIXES.add(pref)
+
+        
+        
+        
     @classmethod
     def getTokens(cls, name):
         """
@@ -706,38 +755,47 @@ class Lex(object):
         :rtype: [str]
         """
         tokens=[]
-        for w in name:
+
+        wCnt=0
+        while wCnt<len(name):
+            
+            #prvně zjistíme tituly
+            wT=cls.isTitle(name, wCnt)
+            for _ in range(wT):
+                #zjistíme všechna slova, která tvoří titul
+                #Návratové hodnoty isTitle
+                #    0 na této pozici se nenacházi titul
+                #    1 titul je tvořen aktuálním slovem
+                #    2    titul tvoří více slov
+                tokens.append(Token(name[wCnt], Token.Type.DEGREE_TITLE)) 
+                wCnt+=1
+            if wT>0:
+                #našli jsme titul
+                #můžeme začít dalším
+                continue
+            
+            w=name[wCnt]
+            wCnt+=1
+            
             if cls.ROMAN_NUMBER_REGEX.match(str(w)):
                 #římská číslovka
                 token=Token(w, Token.Type.ROMAN_NUMBER)
             elif cls.NUMBER_REGEX.match(str(w)):
                 #číslovka z číslic, volitelně zakončená tečkou
                 token=Token(w, Token.Type.NUMBER)
-            elif w[-1] == "." or (len(w)<=3 and str(w).isupper()):
-                if any(str.isdigit(c) for c in w):
-                    #obsahuje číslici
-                    #nemůže se jednat o zkratku, či titul
-                    token=Token(w, Token.Type.ANALYZE)
-                else:
-                    #slovo neobsahuje číslovku
-                    #předpokládáme titul nebo iniciálovou zkratku
-                    
-                    if str(w).upper() in cls.TITLES:
-                        #jedná se o titul
-                        token=Token(w, Token.Type.DEGREE_TITLE)
-                    elif len(w)<3 and str(w).isupper() and w[-1] == ".":
-                        #iniciálová zkratka
-                        token=Token(w, Token.Type.INITIAL_ABBREVIATION)
-                    else:
-                        #ostatní
-                        #Vzhledem k počtu písmen se pravděpodobně jedná o zkratku.
-                        token=Token(w, Token.Type.ANALYZE)
+            elif (w[-1] == "." and len(w)==2 and not str.isdigit(w[0])) or (len(w)==1 and str(w).isupper()):
+                #Jedná se o slovo, které má jedno písmeno (tečku nepočítáme).
+                #Slovo má na konci tečku nebo nemá a pak je písmeno velké.
+                #slovo neobsahuje číslovku.
+                # =>
+                #předpokládáme iniciálovou zkratku
+                token=Token(w, Token.Type.INITIAL_ABBREVIATION)
             else:
                 #ostatní
                 token=Token(w, Token.Type.ANALYZE)
                 
                 
-            #podíváme se, zda-li máme analýzu tam, kde ji potřebujeme
+            #podíváme se, zdali máme analýzu tam, kde ji potřebujeme
             if token.type in cls.TOKEN_TYPES_THAT_NEEDS_MA:
                 try:
                     _=token.word.info
@@ -753,7 +811,61 @@ class Lex(object):
         tokens.append(Token(None, Token.Type.EOF)) 
     
         return tokens  
-     
+    
+    @classmethod
+    def isTitle(cls, name, pos):
+        """
+        Zjistí zdali se na aktuální pozici vyskytuje titul.
+        
+        :param name: Jméno, ve kterém hledáme.
+        :type name: Name
+        :param pos: Pozice slova, kde začínáme hledat titul.
+        :type pos: int
+        :return: Počet slov, které tvoří titul.
+            Pokud 0 není zde titul
+        :rtype: int
+        """
+        w=name[pos]
+        
+        pos+=1
+        
+        if str(w) in cls.__TITLES or (str(w) in cls.__TITLES_PREFIXES and pos<len(name)):
+            #jedná se o titul nebo o jeho potencionální část
+            if str(w) in cls.__TITLES_PREFIXES and pos<len(name):
+                #může se jednat o část delšího titulu
+                #musíme se tedy podívat dopředu
+                
+                #Bereme nejdelší možný titul, protože jinak bychom nemohli pracovat s tituly jako je
+                #Ing.Arch. kvůli existenci titulu Ing.
+
+                lookAhead=pos
+                lastEvaluatedAsTitle=lookAhead if str(w) in cls.__TITLES else None
+                actTitlePrefix=str(w)+str(name[lookAhead])
+                
+                lookAhead+=1
+  
+                while str(actTitlePrefix) in cls.__TITLES_PREFIXES and lookAhead<len(name):
+                    if actTitlePrefix in cls.__TITLES:
+                        lastEvaluatedAsTitle=lookAhead
+                    actTitlePrefix+=str(name[lookAhead])
+
+                    lookAhead+=1
+                
+                if actTitlePrefix in cls.__TITLES:
+                    lastEvaluatedAsTitle=lookAhead-1
+                        
+                if lastEvaluatedAsTitle is not None:
+                    #našli jsme nejdelší možný
+                    #můsíme označit všechny slova, ze kterých se skládá jako tituly
+                    return lastEvaluatedAsTitle-pos+2
+                    
+            elif str(w) in cls.__TITLES:
+                #slovo je titulem nebo jeho částí
+                return 1
+            
+        #nejedná se o titul
+        return 0
+                    
 class AnalyzedToken(object):
     """
     Jedná se o analyzovaný token, který vzniká při syntaktické analýze.
@@ -899,7 +1011,7 @@ class Rule(object):
     
     TERMINAL_REGEX=re.compile("^(.+?)(\{(.*)\})?$") #oddělení typu a attrbutů z terminálu
     
-    def __init__(self, fromString, terminals=None, nonterminals=None):
+    def __init__(self, fromString, terminals=None, nonterminals=None, leftSide:str=None, rightSide=None):
         """
         Vytvoření pravidla z řetězce.
         formát pravidla: Neterminál -> Terminály a neterminály
@@ -910,17 +1022,24 @@ class Rule(object):
         :type terminals: set
         :param nonterminals: Zde bude ukládat nalezené neterminály.
         :type nonterminals: set
+        :param leftSide: Pokud je zadáno, tak se ignoruje levá strana z fromString a použije se tato.
+            Jedná se o jeden neterminál.
+        :type leftSide: str
+        :param rightSide:  Pokud je zadáno, tak se ignoruje pravá strana z fromString a použije se tato.
+            Jedná se o jeden terminály či prázdný řetězec Grammar.EMPTY_STR. Neprovádí kontroly jako v případě kdy je hodnota brána z fromString.
+        :type rightSide: List[Terminal|Grammar.EMPTY_STR]
         :raise InvalidGrammarException: 
              pokud je pravidlo v chybném formátu.
         """
-        try:
-            self._leftSide, self._rightSide=fromString.split("->")
-        except ValueError:
-            #špatný formát pravidla
-            raise InvalidGrammarException(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE,
-                                          Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE)+"\n\t"+fromString)
-            
-        self._leftSide=self._parseSymbol(self._leftSide)
+        if leftSide is None or rightSide is None:
+            try:
+                self._leftSide, self._rightSide=fromString.split("->")
+            except ValueError:
+                #špatný formát pravidla
+                raise InvalidGrammarException(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE,
+                                              Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE)+"\n\t"+fromString)
+                
+        self._leftSide=self._parseSymbol(self._leftSide) if leftSide is None else leftSide
         if isinstance(self._leftSide, Terminal) or self._leftSide==Grammar.EMPTY_STR:
             #terminál nebo prázdný řetězec
             #ovšem v naší gramatice může být na levé straně pouze neterminál
@@ -931,15 +1050,36 @@ class Rule(object):
         if nonterminals is not None:
             nonterminals.add(self._leftSide)
 
-            
-        self._rightSide=[x for x in self._rightSide.split()]
-
-        #vytvoříme ze řetězců potřebné struktury a přidáváme nalezené (ne)terminály do množiny (ne)terminálů
-        for i, x in enumerate(self._rightSide):
-            try:
-                self.rightSide[i]=self._parseSymbol(x)
-                
-                if terminals is not None or nonterminals is not None:
+        if rightSide is None:
+            self._rightSide=[x for x in self._rightSide.split()]
+            #vytvoříme ze řetězců potřebné struktury a přidáváme nalezené (ne)terminály do množiny (ne)terminálů
+            for i, x in enumerate(self._rightSide):
+                try:
+                    self.rightSide[i]=self._parseSymbol(x)
+                    
+                    if terminals is not None or nonterminals is not None:
+                        if isinstance(self.rightSide[i], Terminal):
+                            # terminál
+                            if terminals is not None:
+                                terminals.add(self.rightSide[i])
+                        else:
+                            #neterminál nebo prázdný řetězec
+                            if self.rightSide[i]!=Grammar.EMPTY_STR:
+                                #neterminál
+                                if nonterminals is not None:
+                                    nonterminals.add(self.rightSide[i])
+                except InvalidGrammarException as e:
+                    #došlo k potížím s aktuálním pravidlem
+                    raise InvalidGrammarException(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE, 
+                                                  Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE)+"\n\t"+x+"\t"+fromString
+                                                  +"\n\t"+e.message)
+                except:
+                    raise InvalidGrammarException(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE, 
+                                                  Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE)+"\n\t"+x+"\t"+fromString)
+        else:
+            self._rightSide=rightSide
+            if terminals is not None or nonterminals is not None:
+                for i, x in enumerate(self._rightSide):
                     if isinstance(self.rightSide[i], Terminal):
                         # terminál
                         if terminals is not None:
@@ -950,15 +1090,6 @@ class Rule(object):
                             #neterminál
                             if nonterminals is not None:
                                 nonterminals.add(self.rightSide[i])
-            except InvalidGrammarException as e:
-                #došlo k potížím s aktuálním pravidlem
-                raise InvalidGrammarException(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE, 
-                                              Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE)+"\n\t"+x+"\t"+fromString
-                                              +"\n\t"+e.message)
-            except:
-                raise InvalidGrammarException(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE, 
-                                              Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_GRAMMAR_INVALID_FILE)+"\n\t"+x+"\t"+fromString)
-        
     @classmethod
     def _parseSymbol(cls, s):
         """
@@ -1128,6 +1259,82 @@ class Rule(object):
             return self._leftSide==other._leftSide and self._rightSide==other._rightSide
             
         return False
+
+
+class RulePrefixTree(object):
+    """
+    Prefixový strom vhodný pro získání skupin pravidel o stejných prefixech na pravé straně pravidla.
+    
+    Strom je tvořen dalšími stromy.
+    """
+
+    def __init__(self, rules:Set[Rule], level=0):
+        """
+        Inicializace prefixoveho stromu.
+        
+        :param rules: Pravidla pro zpracování
+        :type rules: Set[Rule]
+        :param level: Uroveň zanoření stromu.
+        :type level: int
+        """
+        pref = {}
+        for r in rules:
+            if level >= len(r.rightSide):
+                if None not in pref:
+                    # listový
+                    pref[None] = set()
+                continue
+            try:
+                pref[r.rightSide[level]].add(r)
+            except KeyError:
+                pref[r.rightSide[level]] = set([r])
+    
+        self._rules = rules
+        self._offsprings = {}
+        for p, x in pref.items():
+            if p is None:
+                self._offsprings[p] = RulePrefixTree(x, level + 1)
+            else:
+                # zkusme najít další větvení
+                move = 1
+                toCompare = next(iter(x)).rightSide
+                try:
+                    while all(toCompare[level + move] == c.rightSide[level + move] for c in x):
+                        # všichni začínají stejně a nevětví se tedy
+                        # můžeme posunout délku prefixu
+                        move += 1
+                except IndexError:
+                    # překročeno, už nemůžeme dál
+                    pass
+                    
+                self._offsprings[tuple(toCompare[level:level + move])] = RulePrefixTree(x, level + move)
+
+    @property
+    def rules(self):
+        """
+        Všechny pravidla v tomto stromě.
+        """
+        return self._rules
+    
+    @property
+    def offsprings(self):
+        """
+        Potomci v prefixovém stromě v podobě dict.
+        
+        Příklad
+            1 2 3 4
+            1 2 3
+            1 2
+            4 5
+        
+        Vrátí:
+            (1,2):RulePrefixTree
+            (4,5):RulePrefixTree
+        :return: Dict kde key je nejdelší možný prefix (jako touple) 
+            než dojde k větvení a value je prefixový strom (pro větvení).
+        :rtype: Dict[Tuple,RulePrefixTree]
+        """
+        return self._offsprings
 
 
 class RuleTemplate(object):
@@ -1389,6 +1596,11 @@ class Grammar(object):
     #se nemají ohýbat.
     NON_GEN_MORPH_SIGN="!"   
     
+    GEN_NONTERM_CNT_SEPPARATOR="$"
+    """
+    Separátor používány v auto. generovaných neterminálech pro oddělení původního jména s počítadlem.
+    """
+    
     class NotInLanguage(Errors.ExceptionMessageCode):
         """
         Řetězec není v jazyce generovaným danou gramatikou.
@@ -1449,6 +1661,7 @@ class Grammar(object):
                 return dict.__getitem__(self, key)
             
 
+    
 
     def __init__(self, filePath, timeout=None):
         """
@@ -1469,20 +1682,16 @@ class Grammar(object):
         
         self._load(filePath)
 
-        self._removeAllUsellesSymbols()
-        #self._simplify()
+
+        self._simplify()
+        
         #vytvoříme si tabulku pro parsování
         self._makeTable()
         
         self.timeout=timeout
         self.grammarEllapsedTime=0
         self.grammarNumOfAnalyzes=0
-        
-    def _translateRules(self):
-        """
-        Provede překlad (rozgenerování) parametrizovaných pravidel.
-        """
-        
+
     
     def _load(self,filePath):
         """
@@ -1874,7 +2083,8 @@ class Grammar(object):
         """
         self._removeAllUsellesSymbols()
         self._eliminatingEpRules()
-        self._removeUnaryRules()
+        #self._removeUnaryRules()
+        self._makeGroups()
   
     def _removeAllUsellesSymbols(self):
         """
@@ -1969,6 +2179,7 @@ class Grammar(object):
         Provede odstranění jednoduchých pravidel ve formě: A->B, kde A,B jsou neterminály.
         POZOR!: Předpokládá gramatiku, na kterou bylo použito eliminatingEpRules.
         """
+        #Inspirováno:
         #Source: https://courses.engr.illinois.edu/cs373/sp2009/lectures/lect_12.pdf
         #Lecture 12: Cleaning upCFGs and Chomsky Nor-mal form, CS 373: Theory of Computation ̃Sariel Har-Peled and Madhusudan Parthasarathy
         
@@ -2020,7 +2231,7 @@ class Grammar(object):
                     
     def _makeGroups(self):
         """
-        Provede slučování pravidel na základě prefixů. Vhodné pro zjednodušení procesů analýzy.
+        Provede slučování pravidel na základě prefixů. Vhodné pro zjednodušení procesu analýzy.
         
         Příklad:
             S->!NUMERIC 1{g=F, note=jS, n=S, c=1, t=S, r="^.*ová$"}
@@ -2032,31 +2243,109 @@ class Grammar(object):
             S->!NUMERIC 1{g=F, note=jS, n=S, c=1, t=S, r="^.*ová$"} PREP_GROUP
             S->!NUMERIC 1{g=F, note=jS, n=S, c=1, t=S, r="^.*ová$"} PREP_GROUP !T_GROUP
             
-            Převede na:
-                S->!NUMERIC 1{g=F, note=jS, n=S, c=1, t=S, r="^.*ová$"} S_1
-                S_1-> ε
-                S_1-> !T_GROUP
-                S_1-> NOUN_GROUP_START S_2
-                S_1-> PREP_GROUP S_3
-                S_2 -> !T_GROUP
-                S_2 -> PREP_GROUP
-                S_2 -> PREP_GROUP !T_GROUP
-                S_3-> !T_GROUP 
-                S_3-> ε         
+            S -> NUM(n=S,g=M) ADJ_GROUP_MANDATORY(n=S,g=M) END
+            S -> NUM(n=S,g=M) ADJ_GROUP_MANDATORY(n=S,g=M) LOC2(n=S,g=M) END
             
+            Převede na:
+                S->!NUMERIC 1{g=F, note=jS, n=S, c=1, t=S, r="^.*ová$"} S$1
+                S$1-> ε
+                S$1-> !T_GROUP
+                S$1-> NOUN_GROUP_START S$2
+                S$1-> PREP_GROUP S$3
+                S$2-> ε
+                S$2 -> !T_GROUP
+                S$2 -> PREP_GROUP
+                S$2 -> PREP_GROUP !T_GROUP
+                S$3-> !T_GROUP 
+                S$3-> ε         
+                S -> NUM(n=S,g=M) ADJ_GROUP_MANDATORY(n=S,g=M) S$4
+                S$4-> ε
+                S$4-> LOC2(n=S,g=M) END
         
         """
         
         searchAccordingToLeftSide={}
         for r in self._rules:
-            #najdeme pravidla se stejnou prvou stranou
+            #najdeme pravidla se stejnou levou stranou
             try:
                 searchAccordingToLeftSide[r.leftSide].add(r)
             except KeyError:
                 searchAccordingToLeftSide[r.leftSide]=set([r])
                 
+        self._rules=set()   #budeme plnit novými pravidly
+
+        for leftSide, rules in searchAccordingToLeftSide.items():
+            #rekurzivní vytváření nových pravidel na základě společného prefixu
+            #pravých stran
+            self._rules|=self._makePrefixGroups(leftSide, RulePrefixTree(rules))
+            
+    def _makePrefixGroups(self, leftSide, prefTree):
+        """
+        Vytvoři nová pravidla na základě prefixového stromu.
         
+        :param leftSide: Levá strana pravidel, které se mají vytvářet.
+            Pokud dojde v rekurzi ke větvení, tak přidává pro rozlyšení hodnotu čítače k názvu.
+        :type leftSide: str
+        :param prefTree: Prefixový strom na jehož základě tvoří nová pravidla.
+        :type prefTree: RulePrefixTree
+        """
         
+        #Budeme si zde pro lepší představu ukazovat průběh na modelovém prefixovém stromu.
+        #1] (1,2) (3) (4)    {1}
+        #2] (1,2) (3)        {1,2}
+        #3] (1,2)            {1,2,3}
+        #4] (3,4)            {4}
+        # touply vždy označují nejdelší prefixy, než dojde k větvení. V množinových závorkách jsou čísla pravidel
+        # se stejným prefixem.
+        
+        rules=set()
+
+        newNontermsCnt=0
+        for prefix, tree in prefTree.offsprings.items():
+            if len(tree.rules)>1:
+                #větvíme
+                #budeme potřebovat nový neterminál pro
+                #reprezentaci větve
+                newNonTerm=leftSide+self.GEN_NONTERM_CNT_SEPPARATOR+str(newNontermsCnt)
+                newNontermsCnt+=1
+                
+                #vytvoříme novou větev
+                rules.add(Rule(fromString=None, 
+                               terminals=self._terminals,
+                               nonterminals=self._nonterminals,leftSide=leftSide,
+                     rightSide=list(prefix)+[newNonTerm]))
+
+                #rekurzivně se zanoříme do větve
+                rules|=self._makePrefixGroups(newNonTerm,tree)
+            else:
+                #konec už dál nevětvíme
+                if prefix is None:
+                    #None jako prefix znamená, že aktuální neterminál na levé straně pravidla
+                    #se může derivovat na prázdný řetězec.
+                
+                    #Například chci povolit derivaci jak pro případ znázorněný pravidlem:
+                    #3] (1,2)            {1,2,3}
+                    #tak i dalších sdílejících prefix.
+                    #1] (1,2) (3) (4)    {1}
+                    #2] (1,2) (3)        {1,2}
+                    rules.add(Rule(fromString=None, 
+                                   terminals=self._terminals,
+                                   nonterminals=self._nonterminals,leftSide=leftSide,
+                                   rightSide=[self.EMPTY_STR]))
+                
+                else:      
+                    rules.add(Rule(fromString=None, 
+                               terminals=self._terminals,
+                               nonterminals=self._nonterminals,
+                               leftSide=leftSide,rightSide=list(prefix)))
+                
+                    #v našem modelovém případu to odpovídá:
+                    #    1] (1,2) (3) (4)    {1}
+                    #    4] (3,4)            {4}    
+                
+                
+            
+        return rules
         
     def _makeTable(self):
         """
@@ -2111,23 +2400,15 @@ class Grammar(object):
         print(pandas.DataFrame(data, ordeNon, inputSymbols))
     '''
     
-    def _makeEmptySets(self, force=True):
+    def _makeEmptySets(self):
         """
         Získání "množin" empty (v aktuální gramatice) v podobě dict s příznaky True/False,
          zda daný symbol lze derivovat na prázdný řetězec.
          
         Jedná se o Dict s příznaky: True lze derivovat na prázdný řetězec, či False nelze. 
-        
-        :param force: Pokud je True, tak vytvoří množinu empty bez ohledu na to, zda-li je už vytvořena.
-            Pokud False, tak ji nebude vytvářet, pokud již existuje.
-        :type force: Bool
+
         """
-        if not force:
-            try:
-                return self._empty
-            except AttributeError:
-                #tak nic ještě empty nemáme
-                pass
+
             
         self._empty={t:False for t in self._terminals} #terminály nelze derivovat na prázdný řetězec
         self._empty[self.EMPTY_STR]=True    #prázdný řetězec mohu triviálně derivovat na prázdný řetězec

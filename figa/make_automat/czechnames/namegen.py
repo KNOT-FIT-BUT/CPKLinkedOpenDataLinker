@@ -11,6 +11,8 @@ namegen je program pro generování tvarů jmen osob a lokací.
 
 import sys
 import os
+import locale
+import regex as re
 from argparse import ArgumentParser
 import traceback
 from namegenPack import Errors
@@ -21,13 +23,13 @@ import namegenPack.morpho.MorphCategories
 import configparser
 
 from namegenPack.Name import *
-from _ast import Try
+from namegenPack.Filters import NamesFilter
+from _ast import Try, Or
 from namegenPack.Grammar import Token, Grammar
 import time
-
+import copy
 
 outputFile = sys.stdout
-
 
 
 class ConfigManagerInvalidException(Errors.ExceptionMessageCode):
@@ -40,7 +42,9 @@ class ConfigManager(object):
     """
     Tato třída slouží pro načítání konfigurace z konfiguračního souboru.
     """
-
+    
+    sectionDefault="DEFAULT"
+    sectionFilters="FILTERS"
     sectionDataFiles="DATA_FILES"
     sectionGrammar="GRAMMAR"
     sectionMorphoAnalyzer="MA"
@@ -84,11 +88,70 @@ class ConfigManager(object):
         """
         result={}
 
+        result[self.sectionDefault]=self.__transformDefaults()
+        result[self.sectionFilters]=self.__transformFilters()
         result[self.sectionDataFiles]=self.__transformDataFiles()
         result[self.sectionGrammar]=self.__transformGrammar()
         result[self.sectionMorphoAnalyzer]=self.__transformMorphoAnalyzer()
         
         
+        return result
+    
+    def __transformDefaults(self):
+        """
+        Převede hodnoty pro DEFAULT a validuje je.
+        
+        :returns: dict -- ve formátu jméno prametru jako klíč a k němu hodnota parametru
+        :raise ConfigManagerInvalidException: Pokud je konfigurační soubor nevalidní.
+        """
+        
+        result={
+            "ALLOW_PRIORITY_FILTRATION":self.getAbsolutePath(self.configParser[self.sectionDefault]["ALLOW_PRIORITY_FILTRATION"])=="True"
+            }
+        
+        #nastavení locale
+        if self.configParser[self.sectionDefault]["LC_ALL"]:
+            try:
+                locale.setlocale(locale.LC_ALL, self.configParser[self.sectionDefault]["LC_ALL"])
+            except:
+                raise ConfigManagerInvalidException(
+                            Errors.ErrorMessenger.CODE_INVALID_CONFIG, 
+                            "Nevalidní konfigurační soubor. Nepodařilo se nastavit LC_ALL: "+self.configParser[self.sectionDefault]["LC_ALL"])
+        return result
+    
+    
+    def __transformFilters(self):
+        """
+        Převede hodnoty pro FILTERS a validuje je.
+        
+        :returns: dict -- ve formátu jméno prametru jako klíč a k němu hodnota parametru
+        :raise ConfigManagerInvalidException: Pokud je konfigurační soubor nevalidní.
+        """
+        result={"LANGUAGES":None, "REGEX_NAME":None, "ALLOWED_ALPHABETIC_CHARACTERS":None, "SCRIPT":None}
+        
+        if self.configParser[self.sectionFilters]["LANGUAGES"]:
+            result["LANGUAGES"]=set(l for l in self.configParser[self.sectionFilters]["LANGUAGES"].split())
+            if "UNKNOWN" in result["LANGUAGES"]:
+                #chceme prázdný řetězec
+                result["LANGUAGES"].remove("UNKNOWN")
+                result["LANGUAGES"].add("")
+            
+        if self.configParser[self.sectionFilters]["REGEX_NAME"]:
+            try:
+                result["REGEX_NAME"]=re.compile(self.configParser[self.sectionFilters]["REGEX_NAME"])
+            except re.error:
+                #Nevalidní regex
+                        
+                raise ConfigManagerInvalidException(
+                    Errors.ErrorMessenger.CODE_INVALID_CONFIG, 
+                    "Nevalidní konfigurační soubor. Nevalidní regulární výraz v "+self.sectionFilters+" u REGEX_NAME.")
+                
+        if self.configParser[self.sectionFilters]["ALLOWED_ALPHABETIC_CHARACTERS"]:
+            result["ALLOWED_ALPHABETIC_CHARACTERS"]=set(c for c in self.configParser[self.sectionFilters]["ALLOWED_ALPHABETIC_CHARACTERS"].split())
+        
+        if self.configParser[self.sectionFilters]["SCRIPT"]:
+            result["SCRIPT"]=self.configParser[self.sectionFilters]["SCRIPT"]
+            
         return result
     
     def __transformMorphoAnalyzer(self):
@@ -158,7 +221,7 @@ class ConfigManager(object):
                 content=line.split("#",1)[0].strip()
                 if content:
                     for t in content.split():
-                        titles.add(t.upper())
+                        titles.add(t)
                     
         
         return titles
@@ -174,7 +237,8 @@ class ConfigManager(object):
         result={
             "GRAMMAR_MALE":None,
             "GRAMMAR_FEMALE":None,
-            "GRAMMAR_LOCATIONS":None
+            "GRAMMAR_LOCATIONS":None,
+            "GRAMMAR_EVENTS":None
             }
         self.__loadPathArguments(self.configParser[self.sectionDataFiles], result)
 
@@ -253,7 +317,59 @@ class ArgumentsManager(object):
             Errors.ErrorMessenger.echoError(Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_INVALID_ARGUMENTS), Errors.ErrorMessenger.CODE_INVALID_ARGUMENTS)
 
         return parsed
- 
+
+def priorityDerivationFilter(aTokens):
+    """
+    Filtrování derivací na základě priorit terminálů.
+    
+    Příklad:
+            1. derivace: Adam F    P:::M    Adam[k1gMnSc1]#G F[k1gNnSc1]#S ...
+                Adam    1{p=0, c=1, t=G, g=M, r="^(?!^([sS]vatý|[sS]aint)$).*$", note=jG, n=S}
+                F    1{t=S, c=1, p=0, note=jS, g=N, n=S}
+            2. derivace (vítězná): Adam F    P:::M    Adam[k1gMnSc1]#G F#I ...
+                Adam    1{p=0, c=1, t=G, g=M, r="^(?!^([sS]vatý|[sS]aint)$).*$", note=jG, n=S}
+                F    ia{p=1, t=I}
+        
+            Díky prioritě p=1 u F ve druhé derivaci bude vybrána pouze tato derivace.
+
+            Samotný výběr probíhá tak, že procházíme pomyslným stromem od kořena( první slovo) a postupně, jak procházíme úrovně,
+            tak odstraňujeme větve, kde je menší priorita.
+            Příklad (pouze priority):
+                0 0 0 4
+                2 0 0 0
+                
+                Bude vybrána druhá derivace, protože jsme první odstřihli již při prvním slově, tudiž vyšší priorita není brána v úvahu.
+            
+    :param aTokens: Derivace reprezentované pomocí analyzovaných tokenů.
+    :type aTokens: List[List[AnalyzedToken]]
+    :return: Indexy derivací pro odstranění.
+    :rtype: List[int]
+    """
+    
+    if len(aTokens)<=1:
+        #není co filtrovat
+        return []
+
+    allIndexes=set(x for x in range(len(aTokens)))
+    derivationsLeft=copy.copy(allIndexes)   # z tohoto setu budeme postupně odebírat
+
+    
+    for iW in range(len(aTokens[0])):     
+        #pojďme najít maximální prioritu pro aktuální slovo    
+        maxP=max(aTokens[derivIndex][iW].matchingTerminal.getAttribute(Terminal.Attribute.Type.PRIORITY).value for derivIndex in derivationsLeft)        
+        
+        #odfiltrujeme derivace, které nemají na aktuálním slově maximální prioritu
+        derivationsLeft=set(derivIndex for derivIndex in derivationsLeft 
+                            if aTokens[derivIndex][iW].matchingTerminal.getAttribute(Terminal.Attribute.Type.PRIORITY).value >=maxP)
+        
+        if len(derivationsLeft)<=1:
+            break
+    
+    #Odfiltrovat se mají ty, které se nedostaly až na konec.
+    return list(set(x for x in range(len(aTokens))) - derivationsLeft)
+
+
+
 def main():
     """
     Vstupní bod programu.
@@ -273,7 +389,7 @@ def main():
         
         if configAll[configManager.sectionGrammar]["TITLES"]:
             #nastavíme řetězce, které se mají brát jako tituly
-            namegenPack.Grammar.Lex.TITLES=configAll[configManager.sectionGrammar]["TITLES"]
+            namegenPack.Grammar.Lex.setTitles(configAll[configManager.sectionGrammar]["TITLES"])
         
         logging.info("načtení gramatik")
         #načtení gramatik
@@ -295,6 +411,20 @@ def main():
             
         except Errors.ExceptionMessageCode as e:
             raise Errors.ExceptionMessageCode(e.code, configAll[configManager.sectionDataFiles]["GRAMMAR_LOCATIONS"]+": "+e.message)
+        
+        try:
+            grammarEvents=namegenPack.Grammar.Grammar(configAll[configManager.sectionDataFiles]["GRAMMAR_EVENTS"],
+                                                    configAll[configManager.sectionGrammar]["TIMEOUT"])
+            
+        except Errors.ExceptionMessageCode as e:
+            raise Errors.ExceptionMessageCode(e.code, configAll[configManager.sectionDataFiles]["GRAMMAR_EVENTS"]+": "+e.message)
+        
+        
+        namesFilter=NamesFilter(configAll[configManager.sectionFilters]["LANGUAGES"],
+                                configAll[configManager.sectionFilters]["REGEX_NAME"],
+                                configAll[configManager.sectionFilters]["ALLOWED_ALPHABETIC_CHARACTERS"],
+                                configAll[configManager.sectionFilters]["SCRIPT"])
+        
         logging.info("\thotovo")
         logging.info("čtení jmen")
         #načtení jmen pro zpracování
@@ -307,7 +437,7 @@ def main():
         Word.setMorphoAnalyzer(
             namegenPack.morpho.MorphoAnalyzer.MorphoAnalyzerLibma(
                 configAll[configManager.sectionMorphoAnalyzer]["PATH_TO"], 
-                namesR.allWords(True, True)))
+                namesR.allWords(True, True, namesFilter)))
         
         logging.info("\thotovo")
         logging.info("generování tvarů")
@@ -361,6 +491,18 @@ def main():
         startOfGenMorp = time.time()
         
         for name in namesR:
+            #filtrování
+            if not namesFilter(name):
+                
+                #Na základě uživatelských filtrů nemají být pro toto jméno
+                #generovány tvary.
+                
+                if args.include_no_morphs:
+                    #uživatel chce vytisknout i slova bez tvarů
+                    print(name.printName(), file=outF) 
+
+                continue
+            
             morphsPrinted=False
             try:
                 if name in duplicityCheck:
@@ -428,6 +570,8 @@ def main():
                     #rules a aTokens může obsahovat více než jednu možnou derivaci
                     if name.type==Name.Type.MainType.LOCATION:
                         rules, aTokens=grammarLocations.analyse(tokens)
+                    elif name.type==Name.Type.MainType.EVENTS:
+                        rules, aTokens=grammarEvents.analyse(tokens)
                     elif name.type==Name.Type.PersonGender.MALE:
                         rules, aTokens=grammarMale.analyse(tokens)
                     elif name.type==Name.Type.PersonGender.FEMALE:
@@ -441,7 +585,14 @@ def main():
                 missingCaseWords=set()
                 wNoInfo=set()
                 
-                alreadyGenerated=set()  #mnozina ntic analizovanych terminalu, ktere byly jiz generovany
+                if configAll[configManager.sectionDefault]["ALLOW_PRIORITY_FILTRATION"]:
+                    #filtr derivací na základě priorit terminálů
+                    for r in sorted(priorityDerivationFilter(aTokens), reverse=True):    #musíme jít od konce, protože se při odstranění mění indexy
+                        #odstranění derivací na základě priorit
+                        del rules[r]
+                        del aTokens[r]
+
+                alreadyGenerated=set()  #mnozina ntic analyzovanych terminalu, ktere byly jiz generovany
                 for ru, aT in zip(rules, aTokens):
 
                     aTTuple=tuple(aT)
@@ -480,7 +631,7 @@ def main():
                         if args.whole and len(morphs)<len(Case):
                             #Uživatel chce tisknout pouze pokud máme tvary pro všechny pády.
                             continue
-                        resAdd=str(name)+"\t"+str(name.type)+"\t"+("|".join(morphs))
+                        resAdd=str(name)+"\t"+str(name.language)+"\t"+str(name.type)+"\t"+("|".join(morphs))
                         if len(name.additionalInfo)>0:
                             resAdd+="\t"+("\t".join(name.additionalInfo))
                         completedMorphs.add(resAdd)
@@ -507,7 +658,7 @@ def main():
                                 break
                             
                 if len(wNoInfo)>0:
-                    #vypšeme slova, kdy analýza selhala
+                    #vypíšeme slova, kdy analýza selhala
                     print(str(name)+"\t"+Errors.ErrorMessenger.getMessage(Errors.ErrorMessenger.CODE_WORD_ANALYZE)+"\t"+(", ".join(str(w)+"#"+str(m) for w, m in wNoInfo)), file=sys.stderr, flush=True)
                 if len(noMorphsWords)>0 or len(missingCaseWords)>0:
                     #chyba při generování tvarů jména
@@ -603,8 +754,8 @@ def main():
         print("\tPrůměrný čas strávený nad generováním tvarů jednoho jména/názvu: ", 
               round((endOfGenMorp - startOfGenMorp)/len(namesR.names),3) if len(namesR.names)>0 else 0 , file=sys.stderr)
         print("\tPrůměrný čas strávený nad jednou syntaktickou analýzou napříč gramatikami:", 
-              (grammarFemale.grammarEllapsedTime+grammarLocations.grammarEllapsedTime+grammarMale.grammarEllapsedTime)/(grammarFemale.grammarNumOfAnalyzes+grammarMale.grammarNumOfAnalyzes+grammarLocations.grammarNumOfAnalyzes)
-              if (grammarFemale.grammarNumOfAnalyzes+grammarMale.grammarNumOfAnalyzes+grammarLocations.grammarNumOfAnalyzes)>0 else 0, file=sys.stderr)
+              (grammarFemale.grammarEllapsedTime+grammarLocations.grammarEllapsedTime+grammarEvents.grammarEllapsedTime+grammarMale.grammarEllapsedTime)/(grammarFemale.grammarNumOfAnalyzes+grammarMale.grammarNumOfAnalyzes+grammarLocations.grammarNumOfAnalyzes+grammarEvents.grammarNumOfAnalyzes)
+              if (grammarFemale.grammarNumOfAnalyzes+grammarMale.grammarNumOfAnalyzes+grammarLocations.grammarNumOfAnalyzes+grammarEvents.grammarNumOfAnalyzes)>0 else 0, file=sys.stderr)
         print("\t\t FEMALE", file=sys.stderr)
         print("\t\t\t Průměrný čas strávený nad jednou syntaktickou analýzou:", 
               grammarFemale.grammarEllapsedTime/grammarFemale.grammarNumOfAnalyzes if grammarFemale.grammarNumOfAnalyzes>0 else 0, file=sys.stderr)
@@ -617,6 +768,10 @@ def main():
         print("\t\t\t Průměrný čas strávený nad jednou syntaktickou analýzou:", 
               grammarLocations.grammarEllapsedTime/grammarLocations.grammarNumOfAnalyzes if grammarLocations.grammarNumOfAnalyzes>0 else 0, file=sys.stderr)
         print("\t\t\t Počet analýz:", grammarLocations.grammarNumOfAnalyzes, file=sys.stderr)
+        print("\t\t EVENTS", file=sys.stderr)
+        print("\t\t\t Průměrný čas strávený nad jednou syntaktickou analýzou:", 
+              grammarEvents.grammarEllapsedTime/grammarEvents.grammarNumOfAnalyzes if grammarEvents.grammarNumOfAnalyzes>0 else 0, file=sys.stderr)
+        print("\t\t\t Počet analýz:", grammarEvents.grammarNumOfAnalyzes, file=sys.stderr)
         print("\tNeznámý druh jména:", errorsUnknownNameType, file=sys.stderr)
         print("\tNepokryto gramatikou:", errorsGrammerCnt, file=sys.stderr)
         print("\tPočet jmen, u kterých došlo k timeoutu při syntaktické analýze:", errorsTimout, file=sys.stderr)
@@ -634,7 +789,7 @@ def main():
                         if nT == Name.Type.PersonGender.MALE:
                             resultStr+="\tk1gMnSc1::"
                     #přidáme jména/názvy kde se problém vyskytl
-                    resultStr+="\t"+str(nT)+"\t@\t"+", ".join(str(name) for name in names)
+                    resultStr+="\t"+str(nT)+"\t@\t"+"\t".join(str(name)+("\t"+name.additionalInfo[0] if len(name.additionalInfo)>0 else "") for name in names)   #name.additionalInfo by mělo na první pozici obsahovat URL zdroje
                     print(resultStr, file=errWFile)
   
 
