@@ -89,31 +89,26 @@ bool figa_cedar::isStrongDelimiter(char c){
  * Remarks:     Only to launch fsa contructor.
  */
 void figa_cedar::get_numbers(string s, vector<int> &values){
-    char c = '0';
     int number = 0;
+    std::string::size_type sz = 0; // the position of the first character in s after the number
     // numbers are saved backwards
     // except numbers may also occur 'N' character in string 's'
     // numbers are pop back from string, and added together until symbol ';'
     // then the final number is saved in vector and it resets and continue until
     // there is something to read
-    while(!(s.empty())){ 
-        while(!(s.empty()) && c != ';'){
-            if (isdigit(c))
-                number =number * 10 + c - '0';
-
-            c = s.back();
-            s.pop_back();
-        }
-        if(s.empty() && c != ';'){
-            if (isdigit(c))
-                number =number * 10 + c -'0';
-        }
-        else{
-            c = s.back();
-            s.pop_back();
+    std::reverse(s.begin(), s.end());
+    while (sz < s.size()) {
+        if (s[sz] == 'N') {
+            number = 0;
+        } else {
+            s = s.substr(sz);
+            number = std::stoi(s, &sz);
         }
         values.push_back(number);
-        number = 0;
+        ++sz;
+        if (sz < s.size() && s[sz] == ';') {
+            ++sz;
+        }
     }
 }
 
