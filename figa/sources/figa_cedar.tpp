@@ -544,10 +544,10 @@ void figa_cedar::get_spellcheck_results(t_status &current,dict_T &dict){
  * Parameters:  current     - structure with queue of processed words   
  *              dict        - dictionary 
  * Returns:     Nothing
- * Remarks:     It goes from back, rewrinting stored values with stop value,
- *              until it finds value biiger then NO_VALUE, then it write out
+ * Remarks:     It goes from back, rewriting stored values with stop value,
+ *              until it finds value bigger then NO_VALUE, then it write out
  *              all associated values with that node and then it write out 
- *              star and end and goes fromt the start of the queue, printing
+ *              star and end and goes from the start of the queue, printing
  *              out words until it reaches stop value, while printing
  *              it rewrites value to stop value, then it deletes  words 
  *              from start until it reaches only non stop value 
@@ -599,12 +599,12 @@ void figa_cedar::get_results(t_status &current,dict_T &dict){
         cout << endl;
     }
 
-    // clearing the start of hte queue
+    // clearing the start of the queue
     if(!current.value.empty()){
         value = current.value.front().value;
         current.value.erase(current.value.begin());
     }
-    // clerst queue fromt he rest of the entity
+    // clears queue from the rest of the entity
     if(!this->overlapping){
         while(!current.value.empty() && current.value.front().value == NO_ENTITY && value == NO_ENTITY){
             current.value.erase(current.value.begin());
@@ -737,7 +737,7 @@ void figa_cedar::spell_KBlookup(dict_T &dict, istream &ifs){
                 word.push_back(c);
             }
             //cout << word << current.spell << "||";
-            if(word.size() > 0){ // proccesing new word
+            if(word.size() > 0){ // processing new word
                 // save context
                 cont.end = count-2;
                 cont.word = word;
@@ -747,7 +747,7 @@ void figa_cedar::spell_KBlookup(dict_T &dict, istream &ifs){
                     spell_from.clear();
                     spell_from.push_back(current.from);
 
-                    // try to aply loaded word in dictionary
+                    // try to apply loaded word in dictionary
                     value = cont.value = dict.traverse(word.data(),current.from,pos = 0);
 
                     //save context
@@ -757,7 +757,7 @@ void figa_cedar::spell_KBlookup(dict_T &dict, istream &ifs){
                         current.found = true;
                     }
                     
-                    //sve the context of current word
+                    //save the context of current word
                     current.value.push_back(cont);
                                         
                     // try to go on next word
@@ -883,7 +883,7 @@ void figa_cedar::spell_KBlookup(dict_T &dict, istream &ifs){
                         break;
                     }
                 }
-            } 
+            }
         }
     }
 }
@@ -1001,7 +1001,7 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
                 }
                 if(value == NO_VALUE || value >= 0){ // word was found in dict, with or without associated value
                     continue;
-                }else{ // word wasnt found in dictionary
+                } else { // word wasnt found in dictionary
                     get_entity<dict_T>(current,dict);
                 }
             }
