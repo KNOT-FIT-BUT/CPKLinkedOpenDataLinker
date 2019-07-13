@@ -1,11 +1,11 @@
 #akademické
-Bc. BcA. Ing. arch. Mgr. MgA. MUDr. MDDR. MVDr. JUDr. RNDr. PhDr. PharmDr. ThDr. CSc. DrSc. Ph.D. Th.D. doc. prof. BBA MBA B.A. M.A. BSc. MSc. Mmed. M.D. Dipl.-Ing. EngD. 
-
+Bc. BcA. Ing. ing. Ing.arch. ing.arch. Mgr. MgA. Dr. Dr.h.c. dr.h.c. dr.h.c.mult. PaedDr. MgArt. MgA.  MUDr. MDDR. MVDr. JUDr. RNDr. PhDr. PharmDr. ThDr. CSc. DrSc. Ph.D. Th.D. doc. Doc. prof. Prof. BBA MBA B.A. M.A. BSc. MSc. Mmed. M.D. Dipl.-Ing. EngD. 
+ak.soch. ak.sochař akad.soch. akad.sochař ak.mal. ak.malíř akad.mal. akad.malíř JUC. MUC. PhC. RNC.
 #vojenské
 voj. svob. des. čet. rtn. rtm. nrtm. šrtm. pprap. prap. nprap. šprap. ppor. por. npor. kpt. mjr. pplk. plk. brig. gen. genmjr. genpor. arm.
 
 #náboženské/církevní
-Svatý Svatá Sv. Saint St.
+Sv. St. sv. st.
 
 #jiné
 Mr. Mrs. Ms.

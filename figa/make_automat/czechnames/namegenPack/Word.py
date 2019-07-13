@@ -18,6 +18,7 @@ class WordTypeMark(Enum):
     GIVEN_NAME="G"                  #Křestní jméno. Příklad: Petra
     SURNAME="S"                     #Příjmení. Příklad: Novák
     LOCATION="L"                    #Lokace. Příklad: Brno
+    EVENT="E"                       #Událost: Příklad: Osvobození Československa
     ROMAN_NUMBER="R"                #Římská číslice. Příklad: IV
     PREPOSITION="7"                 #Předložka.
     CONJUCTION="8"                  #Spojka.
