@@ -5,7 +5,7 @@
  * Purpose:     compare two structures, compares their string parts in 
  *              unsigned char comparision, because of darts-clone
  * Parameters:  a       -first object
- *		        b      - second object
+ *              b      - second object
  * Returns:     True if first object is smaller then second.
  * Remarks:     
  */
@@ -24,7 +24,7 @@ bool sortfunc(loaded_items* a,loaded_items* b){
  * Class:       none
  * Purpose:     check file name for extension to determine type of dictionary
  * Parameters:  file       - file name
- *		        cedar      - return parameter to indicate type of dicitionary
+ *              cedar      - return parameter to indicate type of dicitionary
  * Returns:     Nothing (constructor).
  * Remarks:     Only to launch fsa contructor.
  */
@@ -84,7 +84,7 @@ bool figa_cedar::isStrongDelimiter(char c){
  * Class:       figa_cedar
  * Purpose:     parse string for associated values
  * Parameters:  s       - string to process
- *		        values  - vector to fill with associated values
+ *              values  - vector to fill with associated values
  * Returns:     Nothing. Fills vector values with associated values for entity
  * Remarks:     Only to launch fsa contructor.
  */
@@ -95,7 +95,7 @@ void figa_cedar::get_numbers(string s, vector<int> &values){
     // except numbers may also occur 'N' character in string 's'
     // numbers are pop back from string, and added together until symbol ';'
     // then the final number is saved in vector and it resets and continue until
-    // there is somethin to read
+    // there is something to read
     while(!(s.empty())){ 
         while(!(s.empty()) && c != ';'){
             if (isdigit(c))
@@ -121,7 +121,7 @@ void figa_cedar::get_numbers(string s, vector<int> &values){
  * Class:       figa_cedar
  * Purpose:     load entities and their associated values from file, and fills given vectors with it
  * Parameters:  data       - vector for entities
- *		        values     - vector for associated value
+ *              values     - vector for associated value
  *              file       - input file
  * Returns:     True if succesfull.
  * Remarks:     It loads input by chunks of 10000 symbols and parse it by line. It take one lane,
