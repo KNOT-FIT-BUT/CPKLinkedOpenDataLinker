@@ -982,7 +982,7 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
                     if (ispunct(c)) {
                         if (word.empty()) {
                             word_is_punct = true;
-                        } else if (! word_is_uri && ! word_is_punct) {
+                        } else if (! word_is_uri) {
                             break;
                         }
                     } else {
@@ -990,7 +990,7 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
                             CONSUME_CHAR(); // consume a space delimiter from the stream
                             break; // end at a delimiter if is not a punctuation
                         } else if (word_is_punct) {
-                            break; // end at anything what is not a punctuation
+                            break; // end at anything; when word is punctuation, it has just one character
                         }
                     }
                 }
