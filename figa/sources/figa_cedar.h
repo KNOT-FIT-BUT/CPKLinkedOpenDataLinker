@@ -47,6 +47,7 @@ class figa_cedar{
         std::size_t end; // index of end
         bool capital; // is first word capital
         string word; // word itself
+        string word_delimiter; // word delimiter
         vector<std::size_t > spell_from; // return nodes after spellcheck    
     }t_context;
 
@@ -84,10 +85,14 @@ class figa_cedar{
 
 
     static int checkFileNameForDictType(const char* file,bool &cedar);
-	
+
     // function for identifying delimiters
     // return true, if given symbol is delimiter
-    bool delimiter(char c);
+    bool isDelimiter(char c);
+
+    // function for identifying if symbol is sure delimiter of named entities
+    // return true, if given symbol is strong delimiter
+    bool isStrongDelimiter(char c);
 
     // values of these childs are values associated with entity
     // function for proccesing numbers at the end of line in namelist

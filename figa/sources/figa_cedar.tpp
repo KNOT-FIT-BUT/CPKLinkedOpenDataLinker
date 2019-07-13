@@ -725,10 +725,10 @@ void figa_cedar::spell_KBlookup(dict_T &dict, istream &ifs){
                 if (!ifs.good()) {
                     break;
                 } else if (word_is_uri) {
-                    if (delimiter(c) && ! ispunct(c)) { // end at delimiter if is not a punctiation
+                    if (isDelimiter(c) && ! ispunct(c)) { // end at delimiter if is not a punctiation
                         break;
                     }
-                } else if (delimiter(c)) { // end at delimiter
+                } else if (isDelimiter(c)) { // end at delimiter
                     if (word.size() == 1 && c == '.') { // append dot to an initial
                         word.push_back(c);
                     }
@@ -918,6 +918,8 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
     bool start = true;    
     bool cant_load_more = true;
     bool word_is_uri = false;
+    bool word_is_punct = false;
+    bool new_char = true;
     
     // initializing structure that holds temporary context and laoded words
     current.from = 0;
@@ -950,56 +952,81 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
         if(current.load && ifs.good()){ // need to load more
             cont.start = count;
             word_is_uri = false;
+            word_is_punct = false;
             while(true){ // loading new word
-                c = ifs.get();
-                // always increase if counting in bytes, increase if ASCII symbol
-                if(this->bytes || (unsigned char) c < UTF_8_0 || (unsigned char) c >= UTF_8_1){
-                    count++;                            // increase if c is 11xxxxxx or higher -> utf-8 symbol begin
+                c = ifs.peek(); // see what character is waiting at stream
+                
+                if (new_char) {
+                    // always increase if counting in bytes, increase if ASCII symbol */
+                    if(this->bytes || (unsigned char) c < UTF_8_0 || (unsigned char) c >= UTF_8_1){
+                        count++; /* increase if c is 11xxxxxx or higher -> utf-8 symbol begin */
+                        new_char = false;
+                    }
                 }
+                
                 //cout << c << "  ";
+                
+                #define CONSUME_CHAR() \
+                { \
+                    ifs.get(); /* consume a character from the stream */ \
+                    new_char = true; \
+                }
+                
                 if ((word.size() == 4 && word == "http" || word.size() == 5 && word == "https") && c == ':') {
                     word_is_uri = true;
                 }
                 
                 if (!ifs.good()) {
                     break;
-                } else if (word_is_uri) {
-                    if (delimiter(c) && ! ispunct(c)) { // end at delimiter if is not a punctiation
-                        break;
+                } else {
+                    if (ispunct(c)) {
+                        if (word.empty()) {
+                            word_is_punct = true;
+                        } else if (! word_is_uri && ! word_is_punct) {
+                            break;
+                        }
+                    } else {
+                        if (isDelimiter(c)) {
+                            CONSUME_CHAR(); // consume a space delimiter from the stream
+                            break; // end at a delimiter if is not a punctuation
+                        } else if (word_is_punct) {
+                            break; // end at anything what is not a punctuation
+                        }
                     }
-                } else if (delimiter(c)) { // end at delimiter
-                    break;
                 }
-                word.push_back(c);
+                word.push_back(c); // append a character from the stream to the string
+                CONSUME_CHAR(); // consume a character from the stream
+                #undef CONSUME_CHAR
             }
             //cout << word << " " << endl;
             if(word.size() > 0){ // proccesing new word
                 // save context
                 cont.end = count-2;
                 cont.word = word;
-            
+                cont.from = current.from;
+                
+                if (!ifs.good()) {
+                    cont.word_delimiter = "\n"; // when a word ends with EOF set EOL as word delimiter
+                } else if (isStrongDelimiter(c)) {
+                    cont.word_delimiter = c;
+                } else if (isDelimiter(c) && ! ispunct(c)) {
+                    cont.word_delimiter = " ";
+                } else {
+                    cont.word_delimiter = "";
+                }
+                
                 // try to loaded word in dictionary
                 cont.value = dict.traverse(word.data(),current.from,pos = 0);
                 value = cont.value;
                 //save context
                 cont.from = current.from;
                 current.value.push_back(cont);
+                
                 // try to go on next word
-                if(value == NO_VALUE || value >= 0){
-                    if(ispunct(c)) {
-                        punctiation = c;
-                        word_delimiter = punctiation + space;
-                        value = dict.traverse(word_delimiter.c_str(),current.from,pos = 0);
-                        if(value != NO_VALUE && value < 0) {
-                            word_delimiter = punctiation;
-                            current.from = cont.from;
-                            value = dict.traverse(word_delimiter.c_str(),current.from,pos = 0);
-                        }
-                    } else {
-                        value = dict.traverse(" ",current.from,pos = 0);
-                    }
+                if (value == NO_VALUE || value >= 0){
+                    value = dict.traverse(cont.word_delimiter.c_str(), current.from, pos = 0);
                 }
-                if(value == NO_VALUE || value >= 0){ // word was found in dict, with or without associated value
+                if (value == NO_VALUE || value >= 0){ // word was found in dict, with or without associated value
                     continue;
                 } else { // word wasnt found in dictionary
                     get_entity<dict_T>(current,dict);
@@ -1024,8 +1051,8 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
 
                     // is there another word in dictionary?
                     if(value >=0 || value == NO_VALUE)
-                        value = dict.traverse(" ",current.from,pos = 0);   
-                    //cout << value << " \\\\" <<endl;     
+                        value = dict.traverse(it->word_delimiter.c_str(), current.from, pos = 0);
+                    //cout << value << " \\\\" <<endl;
                     if(value == NO_VALUE || value >= 0){ // there is another word in dictionary
                         if(cant_load_more && value == NO_VALUE){// if there is no more words to load
                             get_entity<dict_T>(current,dict);

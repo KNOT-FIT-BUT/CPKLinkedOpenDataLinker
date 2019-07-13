@@ -59,13 +59,26 @@ int figa_cedar::checkFileNameForDictType(const char* file,bool &cedar){
  * Returns:     true if given symbol is delimiter
  * Remarks:     
  */
-bool figa_cedar::delimiter(char c){
+bool figa_cedar::isDelimiter(char c){
     // checks if symbol is white space, punctiation or control character
     if(isspace(c) || ispunct(c) || iscntrl(c))
         return true;
     return false;
 }
 
+/* Name:        isStrongDelimiter
+ * Class:       figa_cedar
+ * Purpose:     function for identifying if symbol is sure delimiter of named entities
+ * Parameters:  c   - char to check
+ * Returns:     true if given symbol is strong delimiter
+ * Remarks:     
+ */
+bool figa_cedar::isStrongDelimiter(char c){
+    // checks if symbol is sure delimiter of named entities
+    if(c == '\n' || c == '\r')
+        return true;
+    return false;
+}
 
 /* Name:        get_numbers
  * Class:       figa_cedar
