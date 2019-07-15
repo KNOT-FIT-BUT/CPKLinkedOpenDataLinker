@@ -919,7 +919,6 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
     bool cant_load_more = true;
     bool word_is_uri = false;
     bool word_is_punct = false;
-    bool new_char = true;
     
     // initializing structure that holds temporary context and laoded words
     current.from = 0;
@@ -937,6 +936,7 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
     
     // counting bytes
     std::size_t  count = 1;
+    std::size_t  end_offset = count;
                    
     while(true){ // while there is somthing to read
         //cout <<current.load << "  " << current.from << "  ";
@@ -956,20 +956,17 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
             while(true){ // loading new word
                 c = ifs.peek(); // see what character is waiting at stream
                 
-                if (new_char) {
-                    // always increase if counting in bytes, increase if ASCII symbol */
-                    if(this->bytes || (unsigned char) c < UTF_8_0 || (unsigned char) c >= UTF_8_1){
-                        count++; /* increase if c is 11xxxxxx or higher -> utf-8 symbol begin */
-                        new_char = false;
-                    }
-                }
-                
                 //cout << c << "  ";
                 
                 #define CONSUME_CHAR() \
                 { \
+                    bool is_ascii = (unsigned char) c < UTF_8_0; \
+                    bool is_utf8_begin = (unsigned char) c >= UTF_8_1; /* if c is 11xxxxxx or higher -> utf-8 symbol begin */ \
+                    if (this->bytes || is_ascii || is_utf8_begin) { \
+                        end_offset = count; \
+                        count++; /* always increase if counting in bytes, increase if ASCII symbol or begin of UTF-8 symbol */ \
+                    } \
                     ifs.get(); /* consume a character from the stream */ \
-                    new_char = true; \
                 }
                 
                 if ((word.size() == 4 && word == "http" || word.size() == 5 && word == "https") && c == ':') {
@@ -987,7 +984,7 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
                         }
                     } else {
                         if (isDelimiter(c)) {
-                            CONSUME_CHAR(); // consume a space delimiter from the stream
+                            CONSUME_CHAR(); // consume a space delimiter from the stream and increase counter of characters/bytes
                             break; // end at a delimiter if is not a punctuation
                         } else if (word_is_punct) {
                             break; // end at anything; when word is punctuation, it has just one character
@@ -995,13 +992,13 @@ void figa_cedar::KBlookup(dict_T &dict, istream &ifs){
                     }
                 }
                 word.push_back(c); // append a character from the stream to the string
-                CONSUME_CHAR(); // consume a character from the stream
+                CONSUME_CHAR(); // consume a character from the stream and increase counter of characters/bytes
+                cont.end = end_offset; // set end of word
                 #undef CONSUME_CHAR
             }
             //cout << word << " " << endl;
             if(word.size() > 0){ // proccesing new word
                 // save context
-                cont.end = count-2;
                 cont.word = word;
                 cont.from = current.from;
                 
