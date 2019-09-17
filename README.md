@@ -6,6 +6,7 @@ Pro správnou funkčnost je nutné doinstalovat následující závislosti:
 * python_dateutil
 * sources
 * pattern
+* swig
 
 Pro instalaci je možné použít nástroj pip (pip3). Například takto:
 
@@ -25,13 +26,14 @@ Nástroj pro svojí činnost vyžaduje českou KnowledgeBase (dále jako KB). KB
 
 ## Příprava slovníků, nástrojů, ...
 Celý proces přípravy je zjednodušen tak, že stačí spustit jediný skript, který zařídí vše potřebné:
-`./start.sh`
+[`./start.sh`](start.sh)
 
-Tento skript zkompiluje potřebné nástroje a zároveň z KB vytvoří slovníky ([popis tvorby slovníků](https://github.com/KNOT-FIT-BUT/CPKSemanticEnrichment/tree/master/figa/make_automat#tvorba-slovn%C3%ADkov))
+Tento skript zkompiluje potřebné nástroje, zároveň stáhne nejnovější KB (`KBstatsMetrics.all`) a z ní vytvoří slovníky. Pro tvorbu slovníků z české KB se používá více skriptů z adresáře [`figa/make_automat`](figa/make_automat). Ve složce [`figa/make_automat/czechnames/`](figa/make_automat/czechnames/) se nacházejí skripty pro generování alternatívních jmen entit. 
+Tvorba slovníků pro NER i pro autocomplete je prováděna pomocí skriptů [`create_cedar.sh`](figa/make_automat/create_cedar.sh) a [`create_cedar_autocomplete.sh`](figa/make_automat/create_cedar_autocomplete.sh). Tyto skripty pracují se souborem `KBstatsMetrics.all`, z něhož získají seznam jmen, který se následně předloží nástroji `figa` (aktuální verze: figav1.0), který dané automaty vytvoří (vše je zahrnuto do inicializačního skriptu [`./start.sh`](start.sh)).
 
 ## Nástroj ner_cz.py
 
-Nástroj na rozpoznávání a disambiguaci (anotaci) entit je implementovaný ve skriptu ner_cz.py (pro jeho činnost je potřeba provést kroky uvedené v předchozí kapitole). Skript ner_cz.py využívá ke svojí činnosti KB, která je nahraná ve sdílené paměti pomocí nástrojů z adresáře SharedKB (není třeba nic dalšího spouštět, vše je zahrnuto v předchozím skriptu `./start.sh`).
+Nástroj na rozpoznávání a disambiguaci (anotaci) entit je implementovaný ve skriptu [`ner_cz.py`](ner_cz.py) (pro jeho činnost je potřeba provést kroky uvedené v předchozí kapitole). Skript [`ner_cz.py`](ner_cz.py) využívá ke svojí činnosti KB, která je nahraná ve sdílené paměti pomocí nástrojů z adresáře SharedKB (není třeba nic dalšího spouštět, vše je zahrnuto v inicializačním skriptu `./start.sh`), rovněž využívá nástroje `figa`, který pomocí několika slovníků dokáže v textu rozpoznávat entity. 
 
 Nástroj pracuje s KB s přidanými sloupci, které obsahují statistická data z Wikipedie a předpočítané skóre pro disambiguaci.
 
@@ -66,8 +68,19 @@ BEGIN_OFFSET    END_OFFSET      TYPE    TEXT    OTHER
 
 `OTHER` pro typy `kb` a `coref` má podobu seznamu odpovídajících čísel řádků v KB oddělených znakem středník (`;`). Pokud je zapnutá disambiguace, zvolený je pouze jeden řádek odpovídající nejpravděpodobnějšímu významu. Při použití skriptu s parametrem `-s` se zobrazí dvojice číslo řádku a ohodnocení entity, dvojice jsou od sebe odděleny středníkem. Pro typy `date` a `interval` obsahuje údaj v normalizovaném ISO formátu.
 
-### Popis činnosti
+### Příklad použití a výstupu nástroje ner_cz.py
+```
+python ner_cz.py <<< "Prvním československým prezidentem se stal 14. listopadu 1918 Tomáš Garrigue Masaryk (opětovně zvolen v květnu v letech 1920, 1927, 1934), kterého po jeho abdikaci 14. prosince v roce 1935 vystřídal Edvard Beneš."
+43      61      date    14. listopadu 1918      1918-11-14
+62      84      kb      Tomáš Garrigue Masaryk  33550
+120     124     date    1920    1920-00-00
+126     130     date    1927    1927-00-00
+132     136     date    1934    1934-00-00
+184     188     date    1935    1935-00-00
+199     211     kb      Edvard Beneš    245
+```
 
+### Popis činnosti
 Nástroj funguje podobně jako anglická verze, kontextová disabiguace je ale o něco rozšířená. V prvním kole se pro jednotlivé odstavce ukládají informace o rozpoznaných entitách podle jejich typů. V druhém kole se tyto informace využívají pro lepší určení konkrétní entity.
 
 U osob se pro výpočet skóre využívají informace o předešlých výskytech dané osoby v odstavci. Kromě toho se pracuje i s výskytem lokací v daném odstavci, kde se sleduje výskyt lokací, které jsou spojené s danou osobou, tedy místem její narození apod. Využívají se i datumy spojené s touto osobou a jejich výskyt v odstavci a taktéž zaměstnání dané osoby apod.
