@@ -1,7 +1,7 @@
 > Po aktualizaci souboru KB.all je nutné znovu vytvořit konečné automaty. Je to z důvodu možných posunů indexů jednotlivých entit.
 
 # Popis nástrojů
-## Tvorba slovníkov
+## Tvorba slovníků
 
 Nástroj ner_cz.py ke své činnosti využívá nástroje figa, který pomocí několika slovníků dokáže v textu rozpoznávat entity.
 
