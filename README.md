@@ -81,7 +81,7 @@ python ner_cz.py <<< "Prvním československým prezidentem se stal 14. listopad
 ```
 
 ### Popis činnosti
-Nástroj funguje podobně jako anglická verze, kontextová disabiguace je ale o něco rozšířená. V prvním kole se pro jednotlivé odstavce ukládají informace o rozpoznaných entitách podle jejich typů. V druhém kole se tyto informace využívají pro lepší určení konkrétní entity.
+V prvním kole se pro jednotlivé odstavce ukládají informace o rozpoznaných entitách podle jejich typů. V druhém kole se tyto informace využívají pro lepší určení konkrétní entity.
 
 U osob se pro výpočet skóre využívají informace o předešlých výskytech dané osoby v odstavci. Kromě toho se pracuje i s výskytem lokací v daném odstavci, kde se sleduje výskyt lokací, které jsou spojené s danou osobou, tedy místem její narození apod. Využívají se i datumy spojené s touto osobou a jejich výskyt v odstavci a taktéž zaměstnání dané osoby apod.
 
