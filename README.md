@@ -22,7 +22,42 @@ nebo
 
 ## KnowledgeBase
 
-Nástroj pro svojí činnost vyžaduje českou KnowledgeBase (dále jako KB). KB je uložená ve formátu TSV (tab-separated value), kdy na každém jednom řádku jsou uložené informace o jedné entitě.
+Nástroj pro svojí činnost vyžaduje českou KnowledgeBase (dále jako KB). KB je uložená ve formátu TSV (tab-separated value), kdy na každém jednom řádku jsou uložené informace o jedné entitě. Každá entita má svůj typ, pomocí typů je definováno rovněž pořadí sloupců v KB - definice typů a jejich sloupců je uložena v souboru `HEAD-KB`, který je vydáván společně s KB. Pokud je v některém sloupci více hodnot, pak jsou tyto hodnoty oddělovány znakem `|` (roura).
+
+Některé sloupce mají všechny entity společné - jsou jimi například tyto:
+* **`ID`** - jednoznačný identifikátor řádku KB
+* **`TYPE`** - informace o typu entity (skrze soubor HEAD-KB tak lze díky pořadí sloupce vyhledat význam dané hodnoty)
+* **`NAME`** - název dané entity (zkrácený o upřesňující popisky - např. *(okres Žďár nad Sázavou)*)
+* **`DISAMBIGUATION NAME`** *(`ORIGINAL_WIKINAME`)* - úplný název dané entity (včetně původních upřesňujících popisků)
+* **`ALIASES`** - obsahuje další názvy, na základě kterých má být entita rozpoznána
+* **`REDIRECTS`** - stránky přesměrování, na základě kterých jsou entity rovněž rozpoznávány
+* **`DESCRIPTION`** - první věta dané zdrojové stránky
+* **`IMAGES`** - obrázky ze zdrojové stránky, které byly k dané entitě nalezeny
+* **`WIKI BACKLINKS`**, **`WIKI HITS`**, **`WIKI PRIMARY SENSE`**, **`SCORE WIKI`**, **`SCORE METRICS`**, **`CONFIDENCE`** - metriky pro disambiguaci
+* *...a další*
+
+V KB jsou uloženy následující typy entit (každá z nich má své specifické sloupce, z nichž některé jsou uvedeny jako příklady pod daným typem entity):
+* **`person`** - pro osoby:
+  * **`GENDER`** - pohlaví osoby
+  * **`DATE OF BIRTH`** - datum narození
+  * **`PLACE OF BIRTH`** - místo narození
+  * **`DATE OF DEATH`** - datum úmrtí
+  * **`PLACE OF DEATH`** - místo úmrtí
+  * *...a další*
+* **`geo`** - pro grografické objekty (jako například města, státy, pohoří, řeky, ...):
+  * **`LATITUDE`** - zeměpisná šířka
+  * **`LONGITUDE`** - zeměpisná délka
+  * **`ELEVATION`** - nadmořská výška
+  * **`COUNTRY`** - země umístění
+  * *...a další*
+* **`organisation`** - pro organizace:
+  * **`FOUNDED`** - datum založení
+  * **`LOCATION`** - sídlo organizace
+  * *...a další*
+* **`event`** - pro události:
+  * **`START DATE`** - začátek události
+  * **`END DATE`** - konec události
+  * *...a další*
 
 ## Příprava slovníků, nástrojů, ...
 Celý proces přípravy je zjednodušen tak, že stačí spustit jediný skript, který zařídí vše potřebné:
